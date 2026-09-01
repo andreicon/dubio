@@ -20,6 +20,7 @@ def test_demucs_separator_smoke(monkeypatch, tmp_path):
 
     class StubModel:
         samplerate = 48000
+        sources = ["vocals", "drums", "bass"]
 
     def fake_apply_model(model, audio_file, device=None):
         return [[StubTensor(), StubTensor(), StubTensor()]]

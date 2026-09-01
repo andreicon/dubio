@@ -12,6 +12,7 @@ Not committed.
 - Kept the Demucs import lazy so the CLI still loads when the optional separation dependency is absent.
 - Fixed the Demucs adapter to emit 48k stems and collapse non-vocal sources into `music` with an `sfx` approximation.
 - Normalized hard separation failures to `DubError("SEP-001", ...)` with source context in the pipeline.
+- Fixed the Demucs smoke-test stub to include `model.sources` so it matches the adapter contract.
 
 ## Summary
 - Added `dubio.engines.separation.base` with `Stems` and `SourceSeparator`.
@@ -25,6 +26,7 @@ Not committed.
 - `pytest` is not installed in the worktree interpreter, so I could not run the requested pytest targets in this environment.
 - A direct `python3.12` CLI smoke check could not run because runtime dependencies like `typer` are also unavailable in the base interpreter.
 - Re-ran syntax verification after the fix with `python3.12 -m compileall src tests`.
+- Re-ran syntax verification after the fixture-only fix with `python3.12 -m compileall src tests`.
 
 ## Concerns
 - The environment does not have `pytest` available, so the new tests were syntax-checked but not executed here.
