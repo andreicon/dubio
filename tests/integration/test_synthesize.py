@@ -78,7 +78,7 @@ def test_synthesize_cli_regenerates_one_utterance_and_persists_manifest(tmp_path
     assert not (paths.tts_dir / "utt_000002.wav").exists()
 
 
-def test_synthesize_project_persists_prior_success_before_later_failure(tmp_path, monkeypatch):
+def test_synthesize_project_continues_after_failure_and_persists_success(tmp_path, monkeypatch):
     paths = ProjectPaths(tmp_path, "ep1")
     manifest = Manifest(
         project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="spa"),
@@ -106,27 +106,23 @@ def test_synthesize_project_persists_prior_success_before_later_failure(tmp_path
     def fake_synthesize_utterance(manifest, utterance, tts, cache, paths, force=False):
         calls.append(utterance.id)
         if utterance.id == "utt_000001":
-            utterance.tts.file = str(paths.tts_dir / f"{utterance.id}.wav")
-            utterance.tts.engine = "fake"
-            utterance.tts.voice = "voice_bugs"
-            utterance.tts.engine_version = "0"
-            utterance.tts.duration = 0.5
-            paths.tts_dir.mkdir(parents=True, exist_ok=True)
-            write_wav(paths.tts_dir / f"{utterance.id}.wav", __import__("numpy").zeros(24000), 48000)
-            return
-        raise RuntimeError("boom")
+            raise RuntimeError("boom")
+        utterance.tts.file = str(paths.tts_dir / f"{utterance.id}.wav")
+        utterance.tts.engine = "fake"
+        utterance.tts.voice = "voice_bugs"
+        utterance.tts.engine_version = "0"
+        utterance.tts.duration = 0.5
+        paths.tts_dir.mkdir(parents=True, exist_ok=True)
+        write_wav(paths.tts_dir / f"{utterance.id}.wav", __import__("numpy").zeros(24000), 48000)
 
     monkeypatch.setattr("dubio.pipeline.synthesize.synthesize_utterance", fake_synthesize_utterance)
 
-    try:
-        synthesize_project(paths, FakeTTS(out_dir=paths.tts_dir), Config(), force=False)
-    except RuntimeError:
-        pass
+    synthesize_project(paths, FakeTTS(out_dir=paths.tts_dir), Config(hardware={"max_tts_workers": 2}), force=False)
 
     updated = Manifest.load(paths.manifest)
-    assert calls == ["utt_000001", "utt_000002"]
-    assert updated.get_utterance("utt_000001").tts.file is not None
-    assert updated.get_utterance("utt_000002").tts.file is None
+    assert set(calls) == {"utt_000001", "utt_000002"}
+    assert updated.get_utterance("utt_000001").tts.file is None
+    assert updated.get_utterance("utt_000002").tts.file is not None
 
 
 def test_synthesize_utterance_uses_manifest_target_language(tmp_path):

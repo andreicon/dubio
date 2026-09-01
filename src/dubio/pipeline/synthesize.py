@@ -8,6 +8,7 @@ from dubio.engines.tts.base import TTSEngine
 from dubio.project.manifest import Manifest
 from dubio.project.voices import resolve_voice
 from dubio.utils.cache import Cache, tts_cache_key
+from dubio.utils.scheduler import run_jobs
 
 
 def _utterance_text(utterance) -> str:
@@ -53,8 +54,9 @@ def synthesize_project(paths, tts: TTSEngine, config, force: bool = False, utter
     else:
         utterances = manifest.utterances
 
-    for utterance in utterances:
+    def worker(utterance):
         synthesize_utterance(manifest, utterance, tts, cache, paths, force=force)
-        manifest.save(paths.manifest)
+        return utterance
 
+    _report = run_jobs(utterances, worker, max_workers=config.hardware.max_tts_workers)
     manifest.save(paths.manifest)
