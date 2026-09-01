@@ -73,6 +73,8 @@ def voices_cmd(
     paths = ProjectPaths(Path(projects_root), project)
     manifest = Manifest.load(paths.manifest)
     for mapping in map or []:
+        if "=" not in mapping:
+            raise typer.BadParameter("Expected SPEAKER_00=Name")
         speaker_id, name = mapping.split("=", 1)
         map_character(manifest, speaker_id, name)
     manifest.save(paths.manifest)
