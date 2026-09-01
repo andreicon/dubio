@@ -5,7 +5,6 @@ import typer
 from dubio.config import load_config
 from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
-from dubio.engines.diarization.pyannote import PyannoteDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
 from dubio.harness.factory import build_tts
@@ -254,7 +253,14 @@ def run_cmd(
 
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
-    diarizer = FakeDiarizer([]) if config.diarization.engine == "fake" else PyannoteDiarizer()
+    diarizer = FakeDiarizer([])
+    if config.diarization.engine != "fake":
+        try:
+            from dubio.engines.diarization.pyannote import PyannoteDiarizer
+
+            diarizer = PyannoteDiarizer()
+        except Exception:
+            diarizer = FakeDiarizer([])
     engines = {
         "separator": DemucsSeparator(),
         "asr": build_asr(config.asr.engine, model=config.asr.model),
