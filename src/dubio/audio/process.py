@@ -1,6 +1,6 @@
 import numpy as np
 from pyloudnorm import Meter, normalize
-from scipy.signal import butter, sosfilt
+from scipy.signal import butter, resample_poly, sosfilt
 
 
 def remove_dc(x: np.ndarray) -> np.ndarray:
@@ -33,13 +33,11 @@ def apply_eq(x: np.ndarray, sr: int, bands: list[dict]) -> np.ndarray:
             amount = 10 ** (gain_db / 20) - 1.0
             y = y + amount * sosfilt(sos, y)
         elif kind == "lowshelf":
-            y = y + band.get("gain_db", 0.0) / 24.0 * sosfilt(
-                butter(2, freq / (sr / 2), btype="lowpass", output="sos"), y
-            )
+            sos = butter(2, freq / (sr / 2), btype="lowpass", output="sos")
+            y = y + band.get("gain_db", 0.0) / 24.0 * sosfilt(sos, y)
         elif kind == "highshelf":
-            y = y + band.get("gain_db", 0.0) / 24.0 * sosfilt(
-                butter(2, freq / (sr / 2), btype="highpass", output="sos"), y
-            )
+            sos = butter(2, freq / (sr / 2), btype="highpass", output="sos")
+            y = y + band.get("gain_db", 0.0) / 24.0 * sosfilt(sos, y)
     return y
 
 
@@ -58,20 +56,22 @@ def compress(x: np.ndarray, threshold_db: float = -18, ratio: float = 3.0, sr: i
 def normalize_loudness(x: np.ndarray, sr: int, target_lufs: float = -16.0) -> np.ndarray:
     if len(x) == 0:
         return x
-    if len(x) < sr:
-        padded = np.pad(x, (0, sr - len(x)))
-        loudness = Meter(sr).integrated_loudness(padded)
-        return normalize.loudness(x, loudness, target_lufs)
-    loudness = Meter(sr).integrated_loudness(x)
+    meter = Meter(sr)
+    analysis = x if len(x) >= sr else np.pad(x, (0, sr - len(x)))
+    loudness = meter.integrated_loudness(analysis)
+    if loudness == float("-inf"):
+        return x
     return normalize.loudness(x, loudness, target_lufs)
 
 
 def true_peak_limit(x: np.ndarray, ceiling_db: float = -1.0) -> np.ndarray:
     ceiling = 10 ** (ceiling_db / 20)
-    peak = np.max(np.abs(x))
-    if peak <= ceiling or peak == 0:
+    if len(x) == 0:
         return x
-    return x * (ceiling / peak)
+    true_peak = np.max(np.abs(resample_poly(x, 4, 1)))
+    if true_peak <= ceiling or true_peak == 0:
+        return x
+    return x * (ceiling / true_peak)
 
 
 def gain_db(x: np.ndarray, db: float) -> np.ndarray:

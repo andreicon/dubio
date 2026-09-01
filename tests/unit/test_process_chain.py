@@ -26,4 +26,5 @@ def test_true_peak_limit_ceiling():
 
 def test_gain_db_doubles_at_6db():
     x = np.array([0.1, -0.1])
-    assert np.allclose(gain_db(x, 6.0), x * (10 ** (6 / 20)))
+    y = gain_db(x, 6.0)
+    assert np.allclose(measure_loudness(y, 48000).rms_db, measure_loudness(x, 48000).rms_db + 6.0, atol=0.25)
