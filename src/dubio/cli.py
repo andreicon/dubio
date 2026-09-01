@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from dubio.config import load_config
+from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
@@ -183,9 +184,10 @@ def validate_cmd(
     projects_root: str = "projects",
     utterance: str | None = typer.Option(None),
 ):
-    from dubio.engines.asr.fake import FakeASR
-
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
-    validate_project(paths, FakeASR(), config, utterance_id=utterance)
+    asr_kwargs = {}
+    if config.asr.model is not None:
+        asr_kwargs["model"] = config.asr.model
+    validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
     typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
