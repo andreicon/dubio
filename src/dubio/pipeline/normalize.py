@@ -60,10 +60,13 @@ def normalize_utterance(m, utt, paths, config) -> None:
     if total_gain_db:
         processed = dsp.gain_db(processed, total_gain_db)
 
+    processed = dsp.true_peak_limit(processed, config.audio.true_peak_db)
+
     out = paths.processed_dir / f"{utt.id}.wav"
     write_wav(out, processed, sr)
 
-    stats = measure_loudness(processed, sr)
+    written_samples, written_sr = load_wav(out)
+    stats = measure_loudness(written_samples, written_sr)
     utt.validation.measurements["loudness"] = {
         "integrated_lufs": stats.integrated_lufs,
         "true_peak_db": stats.true_peak_db,
