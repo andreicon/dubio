@@ -5,8 +5,8 @@ from dubio.engines.translation.duration import estimate_duration
 
 
 class FakeTranslator(Translator):
-    def __init__(self, mapping: dict[str, list[str]] | None = None):
-        self.mapping = mapping or {}
+    def __init__(self, mapping: dict[str, list[str]]):
+        self.mapping = mapping
 
     def translate(self, req):
         texts = self.mapping.get(req.source_text, [req.source_text])
