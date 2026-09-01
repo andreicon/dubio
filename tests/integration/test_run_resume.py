@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 from dubio.cli import app
 from dubio.config import load_config
+from dubio.errors import DubError
 from dubio.engines.asr.base import Word
 from dubio.engines.asr.fake import FakeASR
 from dubio.engines.diarization.base import SpeakerTurn
@@ -115,3 +116,14 @@ def test_run_command_is_registered():
     result = CliRunner().invoke(app, ["run", "--help"])
     assert result.exit_code == 0, result.output
     assert "--force-from" in result.output
+
+
+def test_run_rejects_unknown_force_from(tmp_path):
+    paths = ProjectPaths(tmp_path, "ep1")
+
+    Manifest(project=Project(id="ep1", source="/tmp/source.mp4", source_language="eng", target_language="ron")).save(
+        paths.manifest
+    )
+
+    with pytest.raises(DubError):
+        run(paths, load_config(None), {}, force_from="not-a-stage")

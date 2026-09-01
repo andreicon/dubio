@@ -5,6 +5,7 @@ import typer
 from dubio.config import load_config
 from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
+from dubio.engines.diarization.pyannote import PyannoteDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
 from dubio.harness.factory import build_tts
@@ -249,16 +250,15 @@ def run_cmd(
     projects_root: str = "projects",
     force_from: str | None = typer.Option(None, "--force-from"),
 ):
-    from dubio.engines.asr.fake import FakeASR
-    from dubio.engines.diarization.fake import FakeDiarizer
     from dubio.engines.separation.demucs import DemucsSeparator
 
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
+    diarizer = FakeDiarizer([]) if config.diarization.engine == "fake" else PyannoteDiarizer()
     engines = {
         "separator": DemucsSeparator(),
-        "asr": FakeASR(),
-        "diarizer": FakeDiarizer([]),
+        "asr": build_asr(config.asr.engine, model=config.asr.model),
+        "diarizer": diarizer,
         "translator": _build_translator(config, paths),
         "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir),
     }

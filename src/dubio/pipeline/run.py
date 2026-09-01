@@ -50,6 +50,10 @@ STAGES: list[StageSpec] = [
 
 
 def run(paths: ProjectPaths, config: Config, engines: dict, force_from: str | None = None) -> None:
+    stage_names = {spec.name for spec in STAGES}
+    if force_from is not None and force_from not in stage_names:
+        raise DubError("RUN-002", f"unknown stage for --force-from: {force_from}", {"force_from": force_from, "stages": sorted(stage_names)})
+
     forcing = False
 
     for spec in STAGES:
