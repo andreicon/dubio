@@ -18,6 +18,13 @@ class AudioCfg(BaseModel):
     sample_rate: int = 48000
     target_lufs: float = -16
     true_peak_db: float = -1
+    normalize_chain: dict = Field(
+        default_factory=lambda: {
+            "high_pass_hz": 80.0,
+            "eq_bands": [],
+            "compress": {"threshold_db": -18.0, "ratio": 3.0},
+        }
+    )
 
 
 class TimingCfg(BaseModel):

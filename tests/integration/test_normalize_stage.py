@@ -39,8 +39,8 @@ def test_normalize_writes_processed_and_metadata(tmp_path):
     assert abs(loudness - (-10.0)) < 2.5
     assert measure_loudness(samples, sr).true_peak_db <= -1.0 + 0.25
     assert "loudness" in utterance.validation.measurements
-    assert abs(utterance.validation.measurements["loudness"]["integrated_lufs"] - loudness) < 0.01
-    assert abs(utterance.validation.measurements["loudness"]["true_peak_db"] - measure_loudness(samples, sr).true_peak_db) < 0.01
+    assert abs(utterance.validation.measurements["loudness"]["integrated_lufs"] - round(loudness, 2)) < 0.01
+    assert abs(utterance.validation.measurements["loudness"]["true_peak_db"] - round(measure_loudness(samples, sr).true_peak_db, 2)) < 0.01
 
 
 def test_process_clip_applies_default_chain_order():
