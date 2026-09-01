@@ -25,6 +25,20 @@ def test_text_change_changes_tts_cache_key():
     assert tts_cache_key(*base) != tts_cache_key(*changed_text)
 
 
+def test_same_inputs_same_tts_cache_key():
+    args = (
+        "fish-s2-pro",
+        "s2-pro",
+        "voice_bugs",
+        "ro",
+        "Ce faci?",
+        {},
+        {"pitch": 2, "speaking_rate": 1.0},
+    )
+
+    assert tts_cache_key(*args) == tts_cache_key(*args)
+
+
 def test_unrelated_mapping_order_does_not_change_stable_hash():
     first = stable_hash("a", {"b": 1, "a": 2})
     second = stable_hash("a", {"a": 2, "b": 1})

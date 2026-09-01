@@ -26,4 +26,4 @@ class Cache:
         return self.dir / f"{key}.{ext}"
 
     def has(self, key, ext="wav") -> bool:
-        return self.path_for(key, ext).exists()
+        return (self.dir / f"{key}.{ext}").exists()
