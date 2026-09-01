@@ -4,11 +4,14 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
 from dubio.config import load_config
-from dubio.engines.asr.base import ASRResult, Segment, Word
+from dubio.engines.asr.base import Word
+from dubio.engines.asr.fake import FakeASR
 from dubio.engines.diarization.base import SpeakerTurn
 from dubio.engines.diarization.fake import FakeDiarizer
+from dubio.cli import app
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.extract import extract
 from dubio.pipeline.transcribe import transcribe
@@ -30,6 +33,8 @@ def _make_fixture(path: Path) -> None:
             "lavfi",
             "-i",
             "sine=frequency=440:duration=2",
+            "-c:v",
+            "libx264",
             "-shortest",
             str(path),
         ],
@@ -38,23 +43,6 @@ def _make_fixture(path: Path) -> None:
         stderr=subprocess.DEVNULL,
     )
 
-
-class StubASR:
-    def transcribe(self, audio_path, language=None):
-        return ASRResult(
-            text="What are you doing?",
-            language=language or "eng",
-            segments=[
-                Segment(
-                    "What are you doing?",
-                    12.43,
-                    15.87,
-                    [Word("What", 12.43, 12.71)],
-                )
-            ],
-        )
-
-
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 def test_m1_pipeline_fake_engines(tmp_path):
     source = tmp_path / "episode.mp4"
@@ -62,19 +50,28 @@ def test_m1_pipeline_fake_engines(tmp_path):
     project_root = tmp_path
     paths = ProjectPaths(project_root, "ep1")
 
-    Manifest(
-        project=Project(
-            id="ep1",
-            source=str(source),
-            source_language="eng",
-            target_language="ron",
-        )
-    ).save(paths.manifest)
+    result = CliRunner().invoke(
+        app,
+        ["init", "ep1", "--source", str(source), "--projects-root", str(project_root)],
+    )
+    assert result.exit_code == 0, result.output
 
     media_info = extract(paths, load_config(None))
     assert media_info.video_codec == "h264"
 
-    transcribe(paths, StubASR(), load_config(None))
+    scripted_audio = str(paths.audio_dir / "source.wav")
+    asr = FakeASR(
+        {
+            scripted_audio: (
+                "What are you doing, băiete?",
+                "eng",
+                12.43,
+                15.87,
+                [Word("What", 12.43, 12.71)],
+            )
+        }
+    )
+    transcribe(paths, asr, load_config(None))
 
     diarizer = FakeDiarizer([SpeakerTurn("SPEAKER_00", 12.0, 16.0)])
     diarize(paths, diarizer, load_config(None))
@@ -90,6 +87,7 @@ def test_m1_pipeline_fake_engines(tmp_path):
     assert manifest.utterances
     assert manifest.utterances[0].speaker == "SPEAKER_00"
     assert manifest.characters["SPEAKER_00"].name == "Bugs"
-    assert manifest.utterances[0].source.text == "What are you doing?"
+    assert manifest.utterances[0].source.text == "What are you doing, băiete?"
+    assert audio_transcript["segments"][0]["text"] == "What are you doing, băiete?"
     assert audio_transcript["segments"][0]["words"][0]["word"] == "What"
     assert diarization[0]["speaker"] == "SPEAKER_00"
