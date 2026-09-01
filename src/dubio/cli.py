@@ -6,6 +6,7 @@ from dubio.config import load_config
 from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
+from dubio.pipeline.transcribe import transcribe
 
 
 app = typer.Typer(help="Video Dubbing Pipeline")
@@ -42,3 +43,12 @@ def extract_cmd(project: str = typer.Argument(...), projects_root: str = "projec
     paths = ProjectPaths(Path(projects_root), project)
     info = extract(paths, load_config(Path(config) if config else None))
     typer.echo(f"Extracted {paths.audio_dir / 'source.wav'} ({info.duration:.3f}s)")
+
+
+@app.command(name="transcribe")
+def transcribe_cmd(project: str = typer.Argument(...), projects_root: str = "projects"):
+    from dubio.engines.asr.fake import FakeASR
+
+    paths = ProjectPaths(Path(projects_root), project)
+    transcribe(paths, FakeASR(), load_config(None))
+    typer.echo(f"Transcribed {paths.audio_dir / 'transcript.json'}")
