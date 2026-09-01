@@ -1,4 +1,4 @@
-import dub
+import dubio
 from dubio.config import load_config
 from dubio.errors import DubError
 
