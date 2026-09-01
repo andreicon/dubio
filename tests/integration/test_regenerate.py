@@ -62,7 +62,11 @@ def test_regenerate_cli_supports_single_utterance(tmp_path, monkeypatch):
 
     from dubio import cli as cli_module
 
-    cli_module.load_config = lambda path=None: Config(tts=EngineCfg(engine="fake"), asr=EngineCfg(engine="fake"))
+    monkeypatch.setattr(
+        cli_module,
+        "load_config",
+        lambda path=None: Config(tts=EngineCfg(engine="fake"), asr=EngineCfg(engine="fake")),
+    )
 
     result = CliRunner().invoke(
         app,
