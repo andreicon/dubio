@@ -2,8 +2,10 @@ from pathlib import Path
 
 import typer
 
+from dubio.config import load_config
 from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
+from dubio.pipeline.extract import extract
 
 
 app = typer.Typer(help="Video Dubbing Pipeline")
@@ -33,3 +35,10 @@ def init(
     )
     manifest.save(paths.manifest)
     typer.echo(f"Initialized {paths.manifest}")
+
+
+@app.command()
+def extract_cmd(project: str = typer.Argument(...), projects_root: str = "projects", config: str | None = None):
+    paths = ProjectPaths(Path(projects_root), project)
+    info = extract(paths, load_config(Path(config) if config else None))
+    typer.echo(f"Extracted {paths.audio_dir / 'source.wav'} ({info.duration:.3f}s)")
