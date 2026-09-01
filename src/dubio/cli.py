@@ -4,10 +4,13 @@ import typer
 
 from dubio.config import load_config
 from dubio.engines.diarization.fake import FakeDiarizer
+from dubio.engines.translation.fake import FakeTranslator
+from dubio.engines.translation.llm import LLMTranslator
 from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
+from dubio.pipeline.translate import translate_project
 from dubio.pipeline.voices import map_character
 from dubio.pipeline.transcribe import transcribe
 
@@ -79,3 +82,48 @@ def voices_cmd(
         map_character(manifest, speaker_id, name)
     manifest.save(paths.manifest)
     typer.echo(f"Updated {paths.manifest}")
+
+
+def _build_translator(config, paths: ProjectPaths):
+    engine = config.translation.engine
+    if engine == "fake":
+        return FakeTranslator({})
+    if engine == "llm":
+        import os
+        import openai
+
+        client = openai.OpenAI(
+            base_url=os.environ.get("DUBIO_LLM_BASE_URL"),
+            api_key=os.environ.get("DUBIO_LLM_API_KEY"),
+        )
+        return LLMTranslator(client=client, model=config.translation.model or os.environ.get("DUBIO_LLM_MODEL", "gpt-4o-mini"))
+    raise typer.BadParameter(f"Unsupported translation engine: {engine}")
+
+
+@app.command(name="translate")
+def translate_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    utterance: str | None = typer.Option(None),
+    set_text: str | None = typer.Option(None, "--set"),
+    approve: bool = typer.Option(False, "--approve"),
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    manifest = Manifest.load(paths.manifest)
+
+    if utterance is not None:
+        target = manifest.get_utterance(utterance)
+        if set_text is not None:
+            target.translation.text = set_text
+            target.translation.status = "edited"
+        elif approve:
+            target.translation.status = "approved"
+        else:
+            raise typer.BadParameter("Use --set or --approve with --utterance")
+        manifest.save(paths.manifest)
+        typer.echo(f"Updated {paths.manifest}")
+        return
+
+    config = load_config(None)
+    translate_project(paths, _build_translator(config, paths), config)
+    typer.echo(f"Translated {paths.manifest}")
