@@ -15,6 +15,7 @@ from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.mix import mix_project
+from dubio.pipeline.regenerate import regenerate_utterance
 from dubio.pipeline.run import run
 from dubio.pipeline.render import render
 from dubio.pipeline.separate import separate
@@ -160,6 +161,33 @@ def synthesize_cmd(
         utterance_id=utterance,
     )
     typer.echo(f"Synthesized {paths.manifest}")
+
+
+@app.command(name="regenerate")
+def regenerate_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    utterance: str | None = typer.Option(None),
+):
+    if utterance is None:
+        raise typer.BadParameter("Use --utterance with regenerate")
+
+    from dubio.engines.asr.fake import FakeASR
+
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    tts_kwargs = {}
+    if config.tts.model is not None:
+        tts_kwargs["model_version"] = config.tts.model
+    if config.tts.engine == "fish-s2-pro":
+        tts_kwargs["device"] = config.hardware.device
+
+    engines = {
+        "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir, **tts_kwargs),
+        "asr": FakeASR(),
+    }
+    regenerate_utterance(paths, utterance, engines, config)
+    typer.echo(f"Regenerated {utterance}")
 
 
 @app.command(name="normalize")
