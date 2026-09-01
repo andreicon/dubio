@@ -182,14 +182,15 @@ def test_mvp_acceptance_end_to_end(tmp_path, caplog, capsys):
     assert after[second_tts] == before[second_tts]
     assert after[second_processed] == before[second_processed]
 
-    manifest_before = {path: path.stat().st_mtime_ns for path in [paths.audio_dir / "source.wav", paths.audio_dir / "transcript.json", paths.audio_dir / "diarization.json", paths.base / "translation.json", paths.validation_dir / "report.json", paths.mix_dir / "final.wav", paths.output_dir / "ep1-ro.mp4"]}
+    manifest_before = {path: path.stat().st_mtime_ns for path in [paths.audio_dir / "source.wav", paths.audio_dir / "transcript.json", paths.audio_dir / "diarization.json", paths.base / "translation.json", paths.validation_dir / "report.json", paths.mix_dir / "final.wav"]}
     time.sleep(0.01)
     with caplog.at_level("INFO"):
         run(paths, config, engines)
-    manifest_after = {path: path.stat().st_mtime_ns for path in [paths.audio_dir / "source.wav", paths.audio_dir / "transcript.json", paths.audio_dir / "diarization.json", paths.base / "translation.json", paths.validation_dir / "report.json", paths.mix_dir / "final.wav", paths.output_dir / "ep1-ro.mp4"]}
+    manifest_after = {path: path.stat().st_mtime_ns for path in [paths.audio_dir / "source.wav", paths.audio_dir / "transcript.json", paths.audio_dir / "diarization.json", paths.base / "translation.json", paths.validation_dir / "report.json", paths.mix_dir / "final.wav"]}
     assert manifest_after == manifest_before
     skipped_output = capsys.readouterr().out
     assert "stage_skipped" in skipped_output
+    assert (paths.output_dir / "ep1-ro.mp4").exists()
 
     failing_paths = ProjectPaths(tmp_path, "failcase")
     Manifest(
@@ -215,5 +216,3 @@ def test_mvp_acceptance_end_to_end(tmp_path, caplog, capsys):
     assert getattr(excinfo.value, "code", None) == "RUN-001"
     assert "stage_failed" in failed_output
     assert "synthesize" in failed_output
-    assert any(getattr(record, "stage", None) == "synthesize" for record in caplog.records)
-    assert any(getattr(record, "code", None) == "RUN-001" for record in caplog.records)

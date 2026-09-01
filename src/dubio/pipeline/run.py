@@ -60,6 +60,18 @@ def _current_fingerprint(spec_name: str, paths: ProjectPaths, config: Config) ->
     transcript = paths.audio_dir / "transcript.json"
     diarization = paths.audio_dir / "diarization.json"
     translation = paths.base / "translation.json"
+    voice_map = {speaker: character.voice for speaker, character in manifest.characters.items()}
+    speaker_names = {speaker: character.name for speaker, character in manifest.characters.items()}
+    utterance_inputs = [
+        {
+            "id": utterance.id,
+            "speaker": utterance.speaker,
+            "text": utterance.source.text,
+            "start": utterance.source.start,
+            "end": utterance.source.end,
+        }
+        for utterance in manifest.utterances
+    ]
 
     if spec_name == "extract":
         payload = {
@@ -68,54 +80,59 @@ def _current_fingerprint(spec_name: str, paths: ProjectPaths, config: Config) ->
         }
     elif spec_name == "separate":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "source_audio": _stat_payload(audio_source),
         }
     elif spec_name == "transcribe":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "source_audio": _stat_payload(audio_source),
+            "source_language": manifest.project.source_language,
             "asr": {"engine": config.asr.engine, "model": config.asr.model},
         }
     elif spec_name == "diarize":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "source_audio": _stat_payload(audio_source),
             "diarization": {"engine": config.diarization.engine, "model": config.diarization.model},
         }
     elif spec_name == "translate":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
+            "transcript": _stat_payload(transcript),
+            "diarization": _stat_payload(diarization),
+            "source_language": manifest.project.source_language,
+            "target_language": manifest.project.target_language,
+            "speaker_names": speaker_names,
+            "utterances": utterance_inputs,
             "translator": {"engine": config.translation.engine, "model": config.translation.model},
         }
     elif spec_name == "synthesize":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
+            "translation": _stat_payload(translation),
+            "voice_map": voice_map,
+            "voices": {voice_id: voice.model_dump(mode="json") for voice_id, voice in manifest.voices.items()},
             "tts": {"engine": config.tts.engine, "model": config.tts.model},
         }
     elif spec_name == "normalize":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "tts_outputs": [_stat_payload(paths.tts_dir / f"{utt.id}.wav") for utt in manifest.utterances],
+            "voice_map": voice_map,
+            "mix": {utt.id: utt.mix.model_dump(mode="json") for utt in manifest.utterances},
             "audio": config.audio.model_dump(mode="json"),
         }
     elif spec_name == "validate":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "processed_outputs": [_stat_payload(paths.processed_dir / f"{utt.id}.wav") for utt in manifest.utterances],
+            "tts": [{"id": utt.id, "file": utt.tts.file, "duration": utt.tts.duration, "translation": utt.translation.text} for utt in manifest.utterances],
             "asr": {"engine": config.asr.engine, "model": config.asr.model},
         }
     elif spec_name == "mix":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "music": _stat_payload(music),
             "sfx": _stat_payload(sfx),
             "processed_outputs": [_stat_payload(paths.processed_dir / f"{utt.id}.wav") for utt in manifest.utterances],
+            "timeline": [{"id": utt.id, "start": utt.source.start, "end": utt.source.end} for utt in manifest.utterances],
             "audio": config.audio.model_dump(mode="json"),
         }
     elif spec_name == "render":
         payload = {
-            "manifest": manifest.model_dump(mode="json"),
             "source_video": _stat_payload(source),
             "final_audio": _stat_payload(paths.mix_dir / "final.wav"),
         }
@@ -136,6 +153,14 @@ def _write_stage_state(paths: ProjectPaths, spec: StageSpec, config: Config) -> 
     state_path = _stage_state_path(paths, spec)
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json.dumps({"fingerprint": _current_fingerprint(spec.name, paths, config)}, indent=2), encoding="utf-8")
+
+
+def record_stage_state(paths: ProjectPaths, config: Config, stage_name: str) -> None:
+    for spec in STAGES:
+        if spec.name == stage_name:
+            _write_stage_state(paths, spec, config)
+            return
+    raise DubError("RUN-002", f"unknown stage for state recording: {stage_name}", {"stage": stage_name})
 
 
 def _artifact_ready(spec: StageSpec, paths: ProjectPaths) -> bool:

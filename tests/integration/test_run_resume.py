@@ -100,6 +100,10 @@ def test_run_skips_completed_stages_and_forces_resume(tmp_path):
 
     run(paths, load_config(None), engines)
 
+    original_source = (paths.audio_dir / "source.wav").stat().st_mtime_ns
+    original_transcript = (paths.audio_dir / "transcript.json").stat().st_mtime_ns
+    original_diarization = (paths.audio_dir / "diarization.json").stat().st_mtime_ns
+
     time.sleep(0.01)
     run(paths, load_config(None), engines)
 

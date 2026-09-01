@@ -110,6 +110,13 @@ def _build_translator(config, paths: ProjectPaths):
     raise typer.BadParameter(f"Unsupported translation engine: {engine}")
 
 
+def _build_asr_engine(config):
+    asr_kwargs = {}
+    if config.asr.model is not None:
+        asr_kwargs["model"] = config.asr.model
+    return build_asr(config.asr.engine, **asr_kwargs)
+
+
 @app.command(name="translate")
 def translate_cmd(
     project: str = typer.Argument(...),
@@ -180,10 +187,7 @@ def regenerate_cmd(
     if config.tts.engine == "fish-s2-pro":
         tts_kwargs["device"] = config.hardware.device
 
-    engines = {
-        "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir, **tts_kwargs),
-        "asr": build_asr(config.asr.engine, model=config.asr.model),
-    }
+    engines = {"tts": build_tts(config.tts.engine, out_dir=paths.tts_dir, **tts_kwargs), "asr": _build_asr_engine(config)}
     regenerate_utterance(paths, utterance, engines, config)
     typer.echo(f"Regenerated {utterance}")
 
@@ -217,10 +221,7 @@ def validate_cmd(
 ):
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
-    asr_kwargs = {}
-    if config.asr.model is not None:
-        asr_kwargs["model"] = config.asr.model
-    validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
+    validate_project(paths, _build_asr_engine(config), config, utterance_id=utterance)
     typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
 
 
