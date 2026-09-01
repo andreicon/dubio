@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from dubio.errors import DubError
 from dubio.engines.separation.base import Stems
 
@@ -32,16 +34,24 @@ class DemucsSeparator:
             dialogue = out / "dialogue.wav"
             music = out / "music.wav"
             sfx = out / "sfx.wav"
-            source_audio = sources[0]
-            dialogue_audio = source_audio[0].cpu().numpy()
-            music_audio = source_audio[1].cpu().numpy() if len(source_audio) > 1 else dialogue_audio * 0
-            sfx_audio = source_audio[2].cpu().numpy() if len(source_audio) > 2 else dialogue_audio * 0
+            stems = {name: stem.cpu().numpy() for name, stem in zip(model.sources, sources[0], strict=False)}
+            dialogue_audio = stems.get("vocals")
+            if dialogue_audio is None:
+                raise DubError("SEP-001", "Demucs did not produce vocals stem", {"source": str(source_wav)})
+
+            non_vocal_stems = [stem for name, stem in stems.items() if name != "vocals"]
+            if non_vocal_stems:
+                music_audio = np.sum(non_vocal_stems, axis=0)
+                sfx_audio = stems.get("other", np.zeros_like(dialogue_audio))
+            else:
+                music_audio = np.zeros_like(dialogue_audio)
+                sfx_audio = np.zeros_like(dialogue_audio)
 
             from dubio.audio.measure import write_wav
 
-            write_wav(dialogue, dialogue_audio, model.samplerate)
-            write_wav(music, music_audio, model.samplerate)
-            write_wav(sfx, sfx_audio, model.samplerate)
+            write_wav(dialogue, dialogue_audio, 48000)
+            write_wav(music, music_audio, 48000)
+            write_wav(sfx, sfx_audio, 48000)
             return Stems(dialogue=dialogue, music=music, sfx=sfx)
         except DubError:
             raise

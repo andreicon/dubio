@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from dubio.errors import DubError
 from dubio.audio.measure import load_wav, write_wav
 from dubio.engines.separation.base import Stems
 
@@ -12,9 +13,9 @@ def separate(paths, separator, config, fallback_to_source: bool = True) -> Stems
 
     try:
         return separator.separate(source, out_dir)
-    except Exception:
+    except Exception as exc:
         if not fallback_to_source:
-            raise
+            raise DubError("SEP-001", f"Separation failed: {exc}", {"source": str(source)}) from exc
 
         out_dir.mkdir(parents=True, exist_ok=True)
         samples, sr = load_wav(source)
