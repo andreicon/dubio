@@ -37,7 +37,7 @@ def init(
     typer.echo(f"Initialized {paths.manifest}")
 
 
-@app.command()
+@app.command(name="extract")
 def extract_cmd(project: str = typer.Argument(...), projects_root: str = "projects", config: str | None = None):
     paths = ProjectPaths(Path(projects_root), project)
     info = extract(paths, load_config(Path(config) if config else None))

@@ -74,6 +74,7 @@ def extract(paths: ProjectPaths, config: Config) -> MediaInfo:
     manifest = Manifest.load(paths.manifest)
     info = probe(manifest.project.source)
     extract_audio(manifest.project.source, paths.audio_dir / "source.wav", sr=config.audio.sample_rate)
-    (paths.audio_dir / "media_info.json").parent.mkdir(parents=True, exist_ok=True)
-    (paths.audio_dir / "media_info.json").write_text(json.dumps(info.__dict__, indent=2), encoding="utf-8")
+    media_info_path = paths.audio_dir / "media_info.json"
+    media_info_path.parent.mkdir(parents=True, exist_ok=True)
+    media_info_path.write_text(json.dumps(info.__dict__, indent=2), encoding="utf-8")
     return info
