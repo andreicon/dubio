@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 
 from dubio.project.manifest import Manifest, SourceSpan, Utterance
 
@@ -27,11 +28,12 @@ def transcribe(paths, asr, config) -> None:
     manifest = Manifest.load(paths.manifest)
     result = asr.transcribe(str(paths.audio_dir / "source.wav"), language=manifest.project.source_language)
     manifest.utterances = transcribe_segments_to_utterances(result)
+    paths.audio_dir.mkdir(parents=True, exist_ok=True)
     (paths.audio_dir / "transcript.json").write_text(
         json.dumps(
             {
                 "language": result.language,
-                "segments": [segment.__dict__ for segment in result.segments],
+                "segments": [asdict(segment) for segment in result.segments],
             },
             ensure_ascii=False,
         ),
