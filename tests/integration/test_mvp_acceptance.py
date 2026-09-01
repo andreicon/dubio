@@ -26,6 +26,7 @@ from dubio.pipeline.separate import separate
 from dubio.pipeline.transcribe import transcribe
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.validate import validate_project
+from dubio.pipeline.voices import map_character
 from dubio.project.manifest import Character, Manifest, Project, Voice
 from dubio.project.paths import ProjectPaths
 
@@ -126,8 +127,10 @@ def test_mvp_acceptance_end_to_end(tmp_path, caplog, capsys):
     assert manifest.utterances[0].translation.status == "translated"
     assert manifest.utterances[0].translation.candidates[0]["text"] == "Ce faci, băiete?"
 
-    manifest.characters["SPEAKER_00"].voice = "bugs_ro"
-    manifest.characters["SPEAKER_01"].voice = "daffy_ro"
+    map_character(manifest, "SPEAKER_00", "Bugs", voice="bugs_ro")
+    map_character(manifest, "SPEAKER_01", "Daffy", voice="daffy_ro")
+    manifest.voices["bugs_ro"] = Voice(engine="fake")
+    manifest.voices["daffy_ro"] = Voice(engine="fake")
     manifest.save(paths.manifest)
 
     run(paths, config, engines)
@@ -212,3 +215,5 @@ def test_mvp_acceptance_end_to_end(tmp_path, caplog, capsys):
     assert getattr(excinfo.value, "code", None) == "RUN-001"
     assert "stage_failed" in failed_output
     assert "synthesize" in failed_output
+    assert any(getattr(record, "stage", None) == "synthesize" for record in caplog.records)
+    assert any(getattr(record, "code", None) == "RUN-001" for record in caplog.records)
