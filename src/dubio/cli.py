@@ -13,6 +13,7 @@ from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.synthesize import synthesize_project
+from dubio.pipeline.validate import validate_project
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.voices import map_character
 from dubio.pipeline.transcribe import transcribe
@@ -174,3 +175,17 @@ def normalize_cmd(
 
     normalize_project(paths, config)
     typer.echo(f"Normalized {paths.manifest}")
+
+
+@app.command(name="validate")
+def validate_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    utterance: str | None = typer.Option(None),
+):
+    from dubio.engines.asr.fake import FakeASR
+
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    validate_project(paths, FakeASR(), config, utterance_id=utterance)
+    typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
