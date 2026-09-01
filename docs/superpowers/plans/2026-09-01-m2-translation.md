@@ -21,7 +21,7 @@
 ### Task 1: Translator Interface + Fake
 
 **Files:**
-- Create: `src/dub/engines/translation/base.py`, `src/dub/engines/translation/fake.py`
+- Create: `src/dubio/engines/translation/base.py`, `src/dubio/engines/translation/fake.py`
 - Test: `tests/unit/test_translator_fake.py`
 
 **Interfaces:**
@@ -30,8 +30,8 @@
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.engines.translation.base import TranslationRequest, Candidate
-from dub.engines.translation.fake import FakeTranslator
+from dubio.engines.translation.base import TranslationRequest, Candidate
+from dubio.engines.translation.fake import FakeTranslator
 
 def test_fake_returns_candidates():
     t = FakeTranslator({"What are you doing?": ["Ce faci?", "Ce naiba faci acolo?"]})
@@ -64,8 +64,8 @@ class Translator(Protocol):
 - [ ] **Step 4: Implement `engines/translation/fake.py`** (uses Task-2 estimator)
 
 ```python
-from dub.engines.translation.base import Translator, Candidate
-from dub.engines.translation.duration import estimate_duration
+from dubio.engines.translation.base import Translator, Candidate
+from dubio.engines.translation.duration import estimate_duration
 
 class FakeTranslator(Translator):
     def __init__(self, mapping): self.mapping = mapping
@@ -87,7 +87,7 @@ git add -A && git commit -m "feat: translator interface + fake translator"
 ### Task 2: Romanian Duration Estimator
 
 **Files:**
-- Create: `src/dub/engines/translation/duration.py`
+- Create: `src/dubio/engines/translation/duration.py`
 - Test: `tests/unit/test_duration_estimate.py`
 
 **Interfaces:**
@@ -96,7 +96,7 @@ git add -A && git commit -m "feat: translator interface + fake translator"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.engines.translation.duration import estimate_duration
+from dubio.engines.translation.duration import estimate_duration
 
 def test_longer_text_longer_duration():
     assert estimate_duration("Ce faci?") < estimate_duration("Ce naiba faci acolo, băiete?")
@@ -132,7 +132,7 @@ git add -A && git commit -m "feat: Romanian duration estimator for candidates"
 ### Task 3: LLM Translator Adapter
 
 **Files:**
-- Create: `src/dub/engines/translation/llm.py`
+- Create: `src/dubio/engines/translation/llm.py`
 - Test: `tests/unit/test_llm_translator.py` (mock client), `tests/integration/test_llm_real.py` (marked `model`, skipped)
 
 **Interfaces:**
@@ -143,8 +143,8 @@ git add -A && git commit -m "feat: Romanian duration estimator for candidates"
 
 ```python
 import json
-from dub.engines.translation.base import TranslationRequest
-from dub.engines.translation.llm import LLMTranslator
+from dubio.engines.translation.base import TranslationRequest
+from dubio.engines.translation.llm import LLMTranslator
 
 class _FakeResp:
     def __init__(self, content): self.choices=[type("C",(),{"message":type("M",(),{"content":content})})]
@@ -170,9 +170,9 @@ def test_llm_parses_candidates():
 
 ```python
 import json
-from dub.engines.translation.base import Translator, Candidate
-from dub.engines.translation.duration import estimate_duration
-from dub.errors import DubError
+from dubio.engines.translation.base import Translator, Candidate
+from dubio.engines.translation.duration import estimate_duration
+from dubio.errors import DubError
 
 _PROMPT = """You are a professional dubbing translator.
 Translate the SOURCE line from {src} to {tgt} for an animated character.
@@ -223,7 +223,7 @@ git add -A && git commit -m "feat: LLM translator adapter (OpenAI-compatible, in
 ### Task 4: Candidate Selection + Translate Stage + CLI
 
 **Files:**
-- Create: `src/dub/pipeline/translate.py`
+- Create: `src/dubio/pipeline/translate.py`
 - Test: `tests/integration/test_translate_stage.py`
 
 **Interfaces:**
@@ -233,8 +233,8 @@ git add -A && git commit -m "feat: LLM translator adapter (OpenAI-compatible, in
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.engines.translation.base import Candidate
-from dub.pipeline.translate import select_candidate
+from dubio.engines.translation.base import Candidate
+from dubio.pipeline.translate import select_candidate
 
 def test_select_prefers_best_fit_under_tolerance():
     cands = [Candidate("Ce faci?", 1.72), Candidate("Ce naiba faci?", 2.31),
@@ -255,9 +255,9 @@ def test_select_falls_back_to_shortest_when_all_too_long():
 
 ```python
 import json
-from dub.engines.translation.base import TranslationRequest
-from dub.pipeline.timing import target_duration
-from dub.project.manifest import Manifest
+from dubio.engines.translation.base import TranslationRequest
+from dubio.pipeline.timing import target_duration
+from dubio.project.manifest import Manifest
 
 def select_candidate(cands, target: float, max_ratio: float = 1.15):
     ceiling = target * max_ratio

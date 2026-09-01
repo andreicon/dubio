@@ -1,4 +1,4 @@
-from dub.engines.asr.base import ASREngine, ASRResult, Segment
+from dubio.engines.asr.base import ASREngine, ASRResult, Segment
 
 
 class FakeASR(ASREngine):

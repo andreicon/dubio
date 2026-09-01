@@ -1,6 +1,6 @@
 import numpy as np
 
-from dub.audio.measure import duration_seconds, measure_loudness
+from dubio.audio.measure import duration_seconds, measure_loudness
 
 
 def test_duration():

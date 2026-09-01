@@ -21,7 +21,7 @@
 ### Task 1: Video Render (FFmpeg mux, no re-encode)
 
 **Files:**
-- Create: `src/dub/pipeline/render.py`
+- Create: `src/dubio/pipeline/render.py`
 - Test: `tests/integration/test_render.py` (real ffmpeg on 2s fixture)
 
 **Interfaces:**
@@ -34,11 +34,11 @@ import subprocess, shutil
 import numpy as np
 import pytest
 from pathlib import Path
-from dub.project.manifest import Manifest
-from dub.project.paths import ProjectPaths
-from dub.audio.measure import write_wav
-from dub.config import Config
-from dub.pipeline.render import render
+from dubio.project.manifest import Manifest
+from dubio.project.paths import ProjectPaths
+from dubio.audio.measure import write_wav
+from dubio.config import Config
+from dubio.pipeline.render import render
 
 def _fixture_video(path):
     subprocess.run(["ffmpeg","-y","-f","lavfi","-i","testsrc=duration=2:size=160x120:rate=24",
@@ -63,8 +63,8 @@ def test_render_muxes_output(tmp_path):
 
 ```python
 import subprocess
-from dub.project.manifest import Manifest
-from dub.errors import DubError
+from dubio.project.manifest import Manifest
+from dubio.errors import DubError
 
 def render(paths, config):
     m = Manifest.load(paths.manifest)
@@ -96,7 +96,7 @@ git add -A && git commit -m "feat: FFmpeg video mux render (stream-copy video)"
 ### Task 2: Resumable Orchestrator (`dub run`)
 
 **Files:**
-- Create: `src/dub/pipeline/run.py`
+- Create: `src/dubio/pipeline/run.py`
 - Test: `tests/integration/test_run_resume.py`
 
 **Interfaces:**
@@ -105,8 +105,8 @@ git add -A && git commit -m "feat: FFmpeg video mux render (stream-copy video)"
 - [ ] **Step 1: Write the failing test (skip logic with fakes)**
 
 ```python
-from dub.pipeline.run import stage_complete, StageSpec
-from dub.project.paths import ProjectPaths
+from dubio.pipeline.run import stage_complete, StageSpec
+from dubio.project.paths import ProjectPaths
 
 def test_stage_complete_by_artifact(tmp_path):
     paths = ProjectPaths(tmp_path, "ep1")
@@ -123,8 +123,8 @@ def test_stage_complete_by_artifact(tmp_path):
 ```python
 from dataclasses import dataclass
 from typing import Callable
-from dub.logging import get_logger
-from dub.errors import DubError
+from dubio.logging import get_logger
+from dubio.errors import DubError
 log = get_logger("run")
 
 @dataclass
@@ -140,8 +140,8 @@ def stage_complete(spec, paths) -> bool:
         return False
 
 def build_stages(engines) -> list[StageSpec]:
-    from dub.pipeline import extract, separate, transcribe, diarize, translate as tr
-    from dub.pipeline import synthesize, normalize, validate as val, mix, render
+    from dubio.pipeline import extract, separate, transcribe, diarize, translate as tr
+    from dubio.pipeline import synthesize, normalize, validate as val, mix, render
     p = lambda rel: (lambda paths: (paths.base / rel).exists())
     return [
         StageSpec("extract", lambda paths: (paths.audio_dir/"source.wav").exists(),
@@ -199,7 +199,7 @@ git add -A && git commit -m "feat: resumable dub run orchestrator with stage ski
 ### Task 3: Single-Utterance Regeneration
 
 **Files:**
-- Create: `src/dub/pipeline/regenerate.py`
+- Create: `src/dubio/pipeline/regenerate.py`
 - Test: `tests/integration/test_regenerate.py`
 
 **Interfaces:**
@@ -210,13 +210,13 @@ git add -A && git commit -m "feat: resumable dub run orchestrator with stage ski
 ```python
 from pathlib import Path
 import numpy as np
-from dub.project.manifest import Manifest, Character, Voice, Utterance, SourceSpan, Translation
-from dub.project.paths import ProjectPaths
-from dub.audio.measure import write_wav
-from dub.config import Config
-from dub.engines.tts.fake import FakeTTS
-from dub.engines.asr.fake import FakeASR
-from dub.pipeline.regenerate import regenerate_utterance
+from dubio.project.manifest import Manifest, Character, Voice, Utterance, SourceSpan, Translation
+from dubio.project.paths import ProjectPaths
+from dubio.audio.measure import write_wav
+from dubio.config import Config
+from dubio.engines.tts.fake import FakeTTS
+from dubio.engines.asr.fake import FakeASR
+from dubio.pipeline.regenerate import regenerate_utterance
 
 def test_regenerate_only_target(tmp_path):
     paths = ProjectPaths(tmp_path, "ep1")
@@ -244,12 +244,12 @@ def test_regenerate_only_target(tmp_path):
 - [ ] **Step 3: Implement `pipeline/regenerate.py`**
 
 ```python
-from dub.utils.cache import Cache
-from dub.project.manifest import Manifest
-from dub.pipeline.synthesize import synthesize_utterance
-from dub.pipeline.normalize import normalize_utterance
-from dub.pipeline.validate import validate_utterance
-from dub.pipeline.mix import mix_project
+from dubio.utils.cache import Cache
+from dubio.project.manifest import Manifest
+from dubio.pipeline.synthesize import synthesize_utterance
+from dubio.pipeline.normalize import normalize_utterance
+from dubio.pipeline.validate import validate_utterance
+from dubio.pipeline.mix import mix_project
 
 def regenerate_utterance(paths, uid, engines, config) -> None:
     m = Manifest.load(paths.manifest)

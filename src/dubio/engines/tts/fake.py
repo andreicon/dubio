@@ -3,8 +3,8 @@ from pathlib import Path
 
 import numpy as np
 
-from dub.audio.measure import write_wav
-from dub.engines.tts.base import AudioArtifact, TTSEngine, VoiceProfile
+from dubio.audio.measure import write_wav
+from dubio.engines.tts.base import AudioArtifact, TTSEngine, VoiceProfile
 
 
 class FakeTTS(TTSEngine):

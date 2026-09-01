@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from dub.engines.asr.fake import FakeASR
-from dub.engines.tts.base import VoiceProfile
-from dub.engines.tts.fake import FakeTTS
+from dubio.engines.asr.fake import FakeASR
+from dubio.engines.tts.base import VoiceProfile
+from dubio.engines.tts.fake import FakeTTS
 
 
 def test_fake_tts_duration_scales_with_text(tmp_path):

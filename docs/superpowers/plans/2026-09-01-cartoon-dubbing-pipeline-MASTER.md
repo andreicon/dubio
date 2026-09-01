@@ -1,10 +1,10 @@
-# Cartoon Dubbing Pipeline — Master Implementation Plan
+# Video Dubbing Pipeline — Master Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement each milestone plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a local-first, modular, timeline-first CLI pipeline that dubs English cartoons into Romanian, preserving music/SFX and producing a final MP4.
+**Goal:** Build a local-first, modular, timeline-first CLI pipeline that dubs English videos into Romanian, preserving music/SFX and producing a final MP4.
 
-**Architecture:** A single JSON manifest per project is the source of truth. A Typer CLI (`dub <stage> <project>`) drives independent, resumable, cache-keyed stages. Every ML capability (ASR, diarization, translation, TTS, source-separation) lives behind a `Protocol` interface in `engines/<kind>/base.py` with a deterministic `fake` adapter for tests and a real GPU adapter for production. `pipeline/` orchestrates stages and never imports a concrete engine.
+**Architecture:** A single JSON manifest per project is the source of truth. A Typer CLI (`dubio <stage> <project>`) drives independent, resumable, cache-keyed stages. Every ML capability (ASR, diarization, translation, TTS, source-separation) lives behind a `Protocol` interface in `engines/<kind>/base.py` with a deterministic `fake` adapter for tests and a real GPU adapter for production. `pipeline/` orchestrates stages and never imports a concrete engine.
 
 **Tech Stack:** Python 3.12, Typer (CLI), pydantic v2 (manifest), FFmpeg (media/render), faster-whisper/openai-whisper (ASR), pyannote.audio (diarization), Demucs (separation), Fish S2 Pro (TTS, experimental), pyloudnorm + soundfile + numpy + scipy + FFmpeg loudnorm (audio), an OpenAI-compatible LLM endpoint (translation), structlog (logging), pytest (+ markers `gpu`, `model`) for tests.
 
@@ -16,7 +16,7 @@
 
 These apply to **every** task in every milestone plan. Values are copied verbatim from the PRD.
 
-- **Runtime:** Python 3.12. Package `dub` under `src/` layout. Build via `pyproject.toml`.
+- **Runtime:** Python 3.12. Package `dubio` under `src/` layout. Build via `pyproject.toml`.
 - **Tests:** `pytest`. Heavy tests marked `@pytest.mark.gpu` and/or `@pytest.mark.model`. Default CI runs `pytest -m "not gpu and not model"`. Every non-trivial function ships with unit tests. TDD: failing test first.
 - **Manifest is authoritative** (PRD §7). All stage outputs recorded in `manifest.json`. Modeled with pydantic v2. Round-trips must preserve Romanian diacritics.
 - **Romanian diacritics `ă â î ș ț` must survive every stage** (PRD §14). No component silently strips them. Shared fixture list of 7 canonical lines reused across ASR/translation/TTS/validation tests.
@@ -34,17 +34,19 @@ These apply to **every** task in every milestone plan. Values are copied verbati
 
 ## Repository / File Structure
 
+**Note:** The repository was previously named `cartoon-dubber`, but it is now `dubio`.
+
 Established in M0 Task 0 and extended by later milestones (mirrors PRD §37).
 
 ```
-cartoon-dubber/                 (== repo root; currently /root/workspace/dubbingV2)
+dubio/                          (== repo root; currently /root/workspace/dubbingV2)
 ├── PRD.md
 ├── README.md                   (created M0)
 ├── pyproject.toml              (created M0)
 ├── config.yaml                 (created M0 — global config)
-├── src/dub/
+├── src/dubio/
 │   ├── __init__.py             (__version__)
-│   ├── cli.py                  (Typer app: dub <stage>)
+│   ├── cli.py                  (Typer app: dubio <stage>)
 │   ├── logging.py              (structlog setup)
 │   ├── errors.py               (DubError + stable IDs)
 │   ├── config.py               (global config loader)
@@ -74,14 +76,14 @@ cartoon-dubber/                 (== repo root; currently /root/workspace/dubbing
 
 | # | Plan file | Deliverable | Gate |
 |---|-----------|-------------|------|
-| M0 | `2026-09-01-m0-tts-research-harness.md` | `dub-tts-test` harness + Fish Romanian eval report | **Fish must pass Romanian eval before M3** |
+| M0 | `2026-09-01-m0-tts-research-harness.md` | `dubio-tts-test` harness + Fish Romanian eval report | **Fish must pass Romanian eval before M3** |
 | M1 | `2026-09-01-m1-timeline-prototype.md` | `episode.mp4 → manifest.json` with accurate timing | — |
 | M2 | `2026-09-01-m2-translation.md` | manifest with approved Romanian dialogue | — |
 | M3 | `2026-09-01-m3-tts.md` | `audio/tts/*.wav` per-utterance | needs M0 gate |
 | M4 | `2026-09-01-m4-audio-processing.md` | `audio/processed/*.wav` normalized | — |
 | M5 | `2026-09-01-m5-validation.md` | `validation/report.json` | — |
 | M6 | `2026-09-01-m6-mixing.md` | `mix/final.wav` | — |
-| M7 | `2026-09-01-m7-final-video.md` | `output/<id>-ro.mp4` + `dub run`/`regenerate` | MVP acceptance §42 |
+| M7 | `2026-09-01-m7-final-video.md` | `output/<id>-ro.mp4` + `dubio run`/`regenerate` | MVP acceptance §42 |
 
 **Milestone 0 is the first implementation task (PRD §46) and must complete before heavy TTS investment.** M1 and M2 can proceed in parallel with M0 since they use fake engines; M3 depends on the M0 Fish gate.
 

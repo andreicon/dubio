@@ -21,7 +21,7 @@
 ### Task 1: DSP Chain Primitives
 
 **Files:**
-- Create: `src/dub/audio/process.py`
+- Create: `src/dubio/audio/process.py`
 - Test: `tests/unit/test_process_chain.py`
 
 **Interfaces:**
@@ -31,8 +31,8 @@
 
 ```python
 import numpy as np
-from dub.audio.process import remove_dc, high_pass, normalize_loudness, true_peak_limit, gain_db
-from dub.audio.measure import measure_loudness
+from dubio.audio.process import remove_dc, high_pass, normalize_loudness, true_peak_limit, gain_db
+from dubio.audio.measure import measure_loudness
 
 def test_remove_dc():
     x = np.ones(1000) * 0.3 + 0.1
@@ -126,7 +126,7 @@ git add -A && git commit -m "feat: configurable DSP chain primitives"
 ### Task 2: Normalize Stage (chain runner + metadata + character gain)
 
 **Files:**
-- Create: `src/dub/pipeline/normalize.py`
+- Create: `src/dubio/pipeline/normalize.py`
 - Test: `tests/integration/test_normalize_stage.py`
 
 **Interfaces:**
@@ -138,11 +138,11 @@ git add -A && git commit -m "feat: configurable DSP chain primitives"
 ```python
 import numpy as np
 from pathlib import Path
-from dub.project.manifest import Manifest, Character, Voice, Utterance, SourceSpan, TTSInfo
-from dub.project.paths import ProjectPaths
-from dub.audio.measure import write_wav, load_wav, measure_loudness
-from dub.config import Config
-from dub.pipeline.normalize import normalize_utterance
+from dubio.project.manifest import Manifest, Character, Voice, Utterance, SourceSpan, TTSInfo
+from dubio.project.paths import ProjectPaths
+from dubio.audio.measure import write_wav, load_wav, measure_loudness
+from dubio.config import Config
+from dubio.pipeline.normalize import normalize_utterance
 
 def test_normalize_writes_processed_and_metadata(tmp_path):
     paths = ProjectPaths(tmp_path, "ep1")
@@ -169,10 +169,10 @@ def test_normalize_writes_processed_and_metadata(tmp_path):
 - [ ] **Step 3: Implement `pipeline/normalize.py`**
 
 ```python
-from dub.audio import process as dsp
-from dub.audio.measure import load_wav, write_wav, measure_loudness
-from dub.project.voices import resolve_voice
-from dub.project.manifest import Manifest
+from dubio.audio import process as dsp
+from dubio.audio.measure import load_wav, write_wav, measure_loudness
+from dubio.project.voices import resolve_voice
+from dubio.project.manifest import Manifest
 
 DEFAULT_CHAIN = {
     "high_pass_hz": 80.0,

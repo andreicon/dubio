@@ -1,10 +1,10 @@
 import dub
-from dub.config import load_config
-from dub.errors import DubError
+from dubio.config import load_config
+from dubio.errors import DubError
 
 
 def test_version_present():
-    assert isinstance(dub.__version__, str) and dub.__version__
+    assert isinstance(dubio.__version__, str) and dubio.__version__
 
 
 def test_duberror_has_stable_id():

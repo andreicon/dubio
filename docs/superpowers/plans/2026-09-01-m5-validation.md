@@ -21,7 +21,7 @@
 ### Task 1: Numeric Validators (duration, overlap, loudness, peak)
 
 **Files:**
-- Create: `src/dub/validation/__init__.py`, `duration.py`, `overlap.py`, `loudness.py`, `peak.py`
+- Create: `src/dubio/validation/__init__.py`, `duration.py`, `overlap.py`, `loudness.py`, `peak.py`
 - Test: `tests/unit/test_validators_numeric.py`
 
 **Interfaces:**
@@ -31,12 +31,12 @@
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.project.manifest import Utterance, SourceSpan, TTSInfo, Validation
-from dub.config import TimingCfg
-from dub.validation.duration import check_duration
-from dub.validation.overlap import check_overlaps
-from dub.validation.loudness import check_loudness
-from dub.validation.peak import check_peak
+from dubio.project.manifest import Utterance, SourceSpan, TTSInfo, Validation
+from dubio.config import TimingCfg
+from dubio.validation.duration import check_duration
+from dubio.validation.overlap import check_overlaps
+from dubio.validation.loudness import check_loudness
+from dubio.validation.peak import check_peak
 
 def _u(uid,s,e,dur=None,allow=False):
     u = Utterance(id=uid, speaker="s", source=SourceSpan(text="x", start=s, end=e))
@@ -73,16 +73,16 @@ from dataclasses import dataclass, field
 class CheckResult:
     name: str; status: str; score: float; detail: dict = field(default_factory=dict)
 # duration.py
-from dub.validation import CheckResult
-from dub.pipeline.timing import duration_status, target_duration
+from dubio.validation import CheckResult
+from dubio.pipeline.timing import duration_status, target_duration
 def check_duration(utt, cfg) -> CheckResult:
     t = target_duration(utt); g = utt.tts.duration or 0.0
     st = duration_status(t, g, cfg)
     score = {"pass":1.0,"warning":0.7,"fail":0.0}[st]
     return CheckResult("duration", st, score, {"target": t, "generated": g, "diff": round(g-t,3)})
 # overlap.py
-from dub.validation import CheckResult
-from dub.pipeline.timing import find_overlaps
+from dubio.validation import CheckResult
+from dubio.pipeline.timing import find_overlaps
 def check_overlaps(utterances) -> list[CheckResult]:
     out = []
     for ov in find_overlaps(utterances):
@@ -91,7 +91,7 @@ def check_overlaps(utterances) -> list[CheckResult]:
                    {"a": ov.a_id, "b": ov.b_id, "seconds": ov.seconds}))
     return out
 # loudness.py
-from dub.validation import CheckResult
+from dubio.validation import CheckResult
 def check_loudness(utt, target_lufs, tol=2.0) -> CheckResult:
     lufs = utt.validation.measurements.get("loudness", {}).get("integrated_lufs")
     if lufs is None:
@@ -100,7 +100,7 @@ def check_loudness(utt, target_lufs, tol=2.0) -> CheckResult:
     st = "pass" if diff <= tol else ("warning" if diff <= 2*tol else "fail")
     return CheckResult("loudness", st, max(0.0, 1.0 - diff/(2*tol)), {"lufs": lufs, "diff": round(diff,2)})
 # peak.py
-from dub.validation import CheckResult
+from dubio.validation import CheckResult
 def check_peak(utt, ceiling_db=-1.0) -> CheckResult:
     tp = utt.validation.measurements.get("loudness", {}).get("true_peak_db")
     if tp is None:
@@ -122,7 +122,7 @@ git add -A && git commit -m "feat: numeric validators (duration, overlap, loudne
 ### Task 2: Language & Re-ASR Text Validators
 
 **Files:**
-- Create: `src/dub/validation/language.py`, `src/dub/validation/text.py`
+- Create: `src/dubio/validation/language.py`, `src/dubio/validation/text.py`
 - Test: `tests/unit/test_validators_asr.py`
 
 **Interfaces:**
@@ -132,10 +132,10 @@ git add -A && git commit -m "feat: numeric validators (duration, overlap, loudne
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.project.manifest import Utterance, SourceSpan, TTSInfo, Translation
-from dub.engines.asr.fake import FakeASR
-from dub.validation.language import check_language
-from dub.validation.text import check_text
+from dubio.project.manifest import Utterance, SourceSpan, TTSInfo, Translation
+from dubio.engines.asr.fake import FakeASR
+from dubio.validation.language import check_language
+from dubio.validation.text import check_text
 
 def _u(path, text):
     u = Utterance(id="u", speaker="s", source=SourceSpan(text="x", start=0, end=2),
@@ -165,7 +165,7 @@ def test_text_flags_drift():
 
 ```python
 # language.py
-from dub.validation import CheckResult
+from dubio.validation import CheckResult
 def check_language(utt, asr, expected="ro") -> CheckResult:
     path = utt.tts.file
     detected = asr.detect_language(path)
@@ -173,8 +173,8 @@ def check_language(utt, asr, expected="ro") -> CheckResult:
     return CheckResult("language", st, 1.0 if st=="pass" else 0.0,
                        {"expected": expected, "detected": detected})
 # text.py
-from dub.validation import CheckResult
-from dub.utils.similarity import text_similarity
+from dubio.validation import CheckResult
+from dubio.utils.similarity import text_similarity
 def check_text(utt, asr, sim_threshold=0.80) -> CheckResult:
     expected = utt.translation.text or utt.source.text
     got = asr.transcribe(utt.tts.file, language="ro").text
@@ -197,7 +197,7 @@ git add -A && git commit -m "feat: language + re-ASR text validators"
 ### Task 3: Composite Score + Validate Stage + Report
 
 **Files:**
-- Create: `src/dub/validation/score.py`, `src/dub/pipeline/validate.py`
+- Create: `src/dubio/validation/score.py`, `src/dubio/pipeline/validate.py`
 - Test: `tests/unit/test_score.py`, `tests/integration/test_validate_stage.py`
 
 **Interfaces:**
@@ -206,8 +206,8 @@ git add -A && git commit -m "feat: language + re-ASR text validators"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.validation import CheckResult
-from dub.validation.score import composite_score
+from dubio.validation import CheckResult
+from dubio.validation.score import composite_score
 
 def test_score_weights_and_range():
     results = [CheckResult("language","pass",1.0), CheckResult("text","pass",0.97),
@@ -240,14 +240,14 @@ def composite_score(results, weights=None):
 
 ```python
 import json
-from dub.validation.duration import check_duration
-from dub.validation.overlap import check_overlaps
-from dub.validation.loudness import check_loudness
-from dub.validation.peak import check_peak
-from dub.validation.language import check_language
-from dub.validation.text import check_text
-from dub.validation.score import composite_score
-from dub.project.manifest import Manifest
+from dubio.validation.duration import check_duration
+from dubio.validation.overlap import check_overlaps
+from dubio.validation.loudness import check_loudness
+from dubio.validation.peak import check_peak
+from dubio.validation.language import check_language
+from dubio.validation.text import check_text
+from dubio.validation.score import composite_score
+from dubio.project.manifest import Manifest
 
 def validate_utterance(m, utt, asr, config) -> dict:
     results = [

@@ -14,14 +14,14 @@
 
 (See master plan.) M1 focus: manifest is authoritative and diacritic-safe; SPEAKER_xx kept separate from character names; no engine specifics in `pipeline/timing.py`; video stream never re-encoded during extraction.
 
-**Interfaces produced in M0 that M1 consumes:** `dub.config.load_config`, `dub.errors.DubError`, `dub.logging.get_logger`, `dub.audio.measure.*`, `dub.engines.asr.base.{ASREngine,ASRResult,Segment,Word}`, `dub.engines.asr.fake.FakeASR`.
+**Interfaces produced in M0 that M1 consumes:** `dubio.config.load_config`, `dubio.errors.DubError`, `dubio.logging.get_logger`, `dubio.audio.measure.*`, `dubio.engines.asr.base.{ASREngine,ASRResult,Segment,Word}`, `dubio.engines.asr.fake.FakeASR`.
 
 ---
 
 ### Task 1: Manifest Model & Project Paths
 
 **Files:**
-- Create: `src/dub/project/manifest.py`, `src/dub/project/paths.py`, `src/dub/project/__init__.py`
+- Create: `src/dubio/project/manifest.py`, `src/dubio/project/paths.py`, `src/dubio/project/__init__.py`
 - Test: `tests/unit/test_manifest.py`
 
 **Interfaces:**
@@ -30,7 +30,7 @@
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.project.manifest import Manifest, Utterance, SourceSpan
+from dubio.project.manifest import Manifest, Utterance, SourceSpan
 
 def test_manifest_roundtrip_preserves_diacritics(tmp_path):
     m = Manifest(project={"id": "ep1", "source": "s.mp4",
@@ -106,7 +106,7 @@ class Manifest(BaseModel):
         for u in self.utterances:
             if u.id == uid:
                 return u
-        from dub.errors import DubError
+        from dubio.errors import DubError
         raise DubError("MANIFEST-001", f"Utterance not found: {uid}")
 ```
 
@@ -150,21 +150,21 @@ git add -A && git commit -m "feat: pydantic manifest model and project paths"
 
 ---
 
-### Task 2: `dub init` and CLI Skeleton
+### Task 2: `dubio init` and CLI Skeleton
 
 **Files:**
-- Create: `src/dub/cli.py`
+- Create: `src/dubio/cli.py`
 - Test: `tests/integration/test_cli_init.py`
 
 **Interfaces:**
-- Produces: Typer `app` with `dub init <project> --source <path> [--source-lang eng --target-lang ron]` creating project dir + minimal manifest. Later tasks/milestones add subcommands (`extract`, `transcribe`, …).
+- Produces: Typer `app` with `dubio init <project> --source <path> [--source-lang eng --target-lang ron]` creating project dir + minimal manifest. Later tasks/milestones add subcommands (`extract`, `transcribe`, …).
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
 from typer.testing import CliRunner
-from dub.cli import app
-from dub.project.manifest import Manifest
+from dubio.cli import app
+from dubio.project.manifest import Manifest
 
 def test_init_creates_manifest(tmp_path):
     r = CliRunner().invoke(app, ["init", "ep1", "--source", "s.mp4",
@@ -181,10 +181,10 @@ def test_init_creates_manifest(tmp_path):
 ```python
 from pathlib import Path
 import typer
-from dub.project.manifest import Manifest, Project
-from dub.project.paths import ProjectPaths
+from dubio.project.manifest import Manifest, Project
+from dubio.project.paths import ProjectPaths
 
-app = typer.Typer(help="Cartoon Dubbing Pipeline")
+app = typer.Typer(help="Video Dubbing Pipeline")
 
 @app.command()
 def init(project: str, source: str = typer.Option(...),
@@ -210,7 +210,7 @@ git add -A && git commit -m "feat: dub init command and CLI skeleton"
 ### Task 3: Media Extraction (FFmpeg)
 
 **Files:**
-- Create: `src/dub/pipeline/extract.py`, `src/dub/pipeline/__init__.py`, `src/dub/utils/ffmpeg.py`
+- Create: `src/dubio/pipeline/extract.py`, `src/dubio/pipeline/__init__.py`, `src/dubio/utils/ffmpeg.py`
 - Test: `tests/integration/test_extract.py` (uses a tiny generated mp4)
 
 **Interfaces:**
@@ -222,7 +222,7 @@ git add -A && git commit -m "feat: dub init command and CLI skeleton"
 import subprocess, shutil
 import pytest
 from pathlib import Path
-from dub.pipeline.extract import probe, extract_audio
+from dubio.pipeline.extract import probe, extract_audio
 
 def _make_fixture(path: Path):
     subprocess.run(["ffmpeg","-y","-f","lavfi","-i","testsrc=duration=2:size=160x120:rate=24",
@@ -249,7 +249,7 @@ def test_probe_and_extract(tmp_path):
 import json, subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from dub.errors import DubError
+from dubio.errors import DubError
 
 @dataclass
 class MediaInfo:
@@ -279,7 +279,7 @@ def extract_audio(source, out_wav, sr: int = 48000) -> Path:
     return out_wav
 
 def extract(paths, config) -> MediaInfo:
-    from dub.project.manifest import Manifest
+    from dubio.project.manifest import Manifest
     m = Manifest.load(paths.manifest)
     info = probe(m.project.source)
     extract_audio(m.project.source, paths.audio_dir / "source.wav",
@@ -302,7 +302,7 @@ git add -A && git commit -m "feat: FFmpeg media probe + audio extraction (no vid
 ### Task 4: Whisper ASR Adapter + Transcribe Stage
 
 **Files:**
-- Create: `src/dub/engines/asr/whisper.py`, `src/dub/pipeline/transcribe.py`
+- Create: `src/dubio/engines/asr/whisper.py`, `src/dubio/pipeline/transcribe.py`
 - Test: `tests/integration/test_transcribe.py` (fake ASR), `tests/unit/test_whisper_marked.py` (GPU/model)
 
 **Interfaces:**
@@ -312,8 +312,8 @@ git add -A && git commit -m "feat: FFmpeg media probe + audio extraction (no vid
 - [ ] **Step 1: Write the failing integration test (fake ASR)**
 
 ```python
-from dub.pipeline.transcribe import transcribe_segments_to_utterances
-from dub.engines.asr.base import ASRResult, Segment, Word
+from dubio.pipeline.transcribe import transcribe_segments_to_utterances
+from dubio.engines.asr.base import ASRResult, Segment, Word
 
 def test_segments_become_utterances():
     res = ASRResult(text="What are you doing?", language="eng", segments=[
@@ -330,7 +330,7 @@ def test_segments_become_utterances():
 - [ ] **Step 3: Implement `pipeline/transcribe.py`**
 
 ```python
-from dub.project.manifest import Utterance, SourceSpan, Manifest
+from dubio.project.manifest import Utterance, SourceSpan, Manifest
 
 def transcribe_segments_to_utterances(res) -> list[Utterance]:
     utts = []
@@ -356,7 +356,7 @@ def transcribe(paths, asr, config) -> None:
 - [ ] **Step 4: Implement `engines/asr/whisper.py`** (GPU-marked usage)
 
 ```python
-from dub.engines.asr.base import ASREngine, ASRResult, Segment, Word
+from dubio.engines.asr.base import ASREngine, ASRResult, Segment, Word
 
 class WhisperASR(ASREngine):
     def __init__(self, model: str = "large-v3", device: str = "cuda", compute_type: str = "float16"):
@@ -390,7 +390,7 @@ git add -A && git commit -m "feat: Whisper ASR adapter + transcribe stage"
 ### Task 5: Diarization Interface, Fake, pyannote Adapter + Stage
 
 **Files:**
-- Create: `src/dub/engines/diarization/{base,fake,pyannote}.py`, `src/dub/pipeline/diarize.py`
+- Create: `src/dubio/engines/diarization/{base,fake,pyannote}.py`, `src/dubio/pipeline/diarize.py`
 - Test: `tests/integration/test_diarize.py` (fake), `tests/unit/test_pyannote_marked.py` (GPU/model)
 
 **Interfaces:**
@@ -399,9 +399,9 @@ git add -A && git commit -m "feat: Whisper ASR adapter + transcribe stage"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.project.manifest import Utterance, SourceSpan
-from dub.engines.diarization.base import SpeakerTurn
-from dub.pipeline.diarize import assign_speakers
+from dubio.project.manifest import Utterance, SourceSpan
+from dubio.engines.diarization.base import SpeakerTurn
+from dubio.pipeline.diarize import assign_speakers
 
 def test_assign_by_max_overlap():
     utts = [Utterance(id="utt_000001", speaker="speaker_00",
@@ -425,7 +425,7 @@ class SpeakerTurn:
 class DiarizationEngine(Protocol):
     def diarize(self, audio_path: str) -> list["SpeakerTurn"]: ...
 # fake.py
-from dub.engines.diarization.base import DiarizationEngine, SpeakerTurn
+from dubio.engines.diarization.base import DiarizationEngine, SpeakerTurn
 class FakeDiarizer(DiarizationEngine):
     def __init__(self, turns): self._turns = turns
     def diarize(self, audio_path): return list(self._turns)
@@ -446,7 +446,7 @@ def assign_speakers(utterances, turns) -> None:
         u.speaker = best
 
 def diarize(paths, diarizer, config) -> None:
-    from dub.project.manifest import Manifest
+    from dubio.project.manifest import Manifest
     m = Manifest.load(paths.manifest)
     turns = diarizer.diarize(str(paths.audio_dir / "source.wav"))
     assign_speakers(m.utterances, turns)
@@ -470,7 +470,7 @@ git add -A && git commit -m "feat: diarization interface, fake, pyannote adapter
 ### Task 6: Character Mapping
 
 **Files:**
-- Create: `src/dub/pipeline/voices.py` (mapping portion; TTS voice-profile portion added in M3)
+- Create: `src/dubio/pipeline/voices.py` (mapping portion; TTS voice-profile portion added in M3)
 - Test: `tests/unit/test_character_map.py`
 
 **Interfaces:**
@@ -479,8 +479,8 @@ git add -A && git commit -m "feat: diarization interface, fake, pyannote adapter
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.project.manifest import Manifest
-from dub.pipeline.voices import map_character
+from dubio.project.manifest import Manifest
+from dubio.pipeline.voices import map_character
 
 def test_map_character_persists():
     m = Manifest(project={"id":"ep1","source":"s.mp4",
@@ -494,7 +494,7 @@ def test_map_character_persists():
 - [ ] **Step 3: Implement mapping in `pipeline/voices.py`**
 
 ```python
-from dub.project.manifest import Character
+from dubio.project.manifest import Character
 
 def map_character(manifest, speaker_id: str, name: str, voice: str | None = None) -> None:
     manifest.characters[speaker_id] = Character(name=name, voice=voice)
@@ -515,7 +515,7 @@ git add -A && git commit -m "feat: manual speaker→character mapping"
 ### Task 7: Timeline Assembly & Overlap Primitives
 
 **Files:**
-- Create: `src/dub/pipeline/timing.py`
+- Create: `src/dubio/pipeline/timing.py`
 - Test: `tests/unit/test_timing.py`
 
 **Interfaces:**
@@ -524,9 +524,9 @@ git add -A && git commit -m "feat: manual speaker→character mapping"
 - [ ] **Step 1: Write the failing test**
 
 ```python
-from dub.project.manifest import Utterance, SourceSpan
-from dub.config import TimingCfg
-from dub.pipeline.timing import find_overlaps, duration_status
+from dubio.project.manifest import Utterance, SourceSpan
+from dubio.config import TimingCfg
+from dubio.pipeline.timing import find_overlaps, duration_status
 
 def _u(uid,s,e): return Utterance(id=uid,speaker="s",source=SourceSpan(text="x",start=s,end=e))
 

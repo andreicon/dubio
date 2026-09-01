@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the project scaffold plus a standalone `dub-tts-test` harness that evaluates any TTS engine on Romanian text and produces `metrics.json`, then gate Fish S2 Pro against a Romanian evaluation suite.
+**Goal:** Build the project scaffold plus a standalone `dubio-tts-test` harness that evaluates any TTS engine on Romanian text and produces `metrics.json`, then gate Fish S2 Pro against a Romanian evaluation suite.
 
 **Architecture:** Establish shared foundations (packaging, logging, errors, audio measurement, Romanian fixtures, engine base interfaces) then the harness that wires a `TTSEngine` + `ASREngine` into a reproducible evaluation with inspectable artifacts. Real Fish/Whisper adapters are GPU-marked; all logic is verified with deterministic fakes.
 
@@ -20,22 +20,22 @@
 
 **Files:**
 - Create: `pyproject.toml`, `README.md`, `config.yaml`, `.gitignore`, `projects/.gitkeep`
-- Create: `src/dub/__init__.py`, `src/dub/logging.py`, `src/dub/errors.py`, `src/dub/config.py`
+-- Create: `src/dubio/__init__.py`, `src/dubio/logging.py`, `src/dubio/errors.py`, `src/dubio/config.py`
 - Create: `tests/conftest.py`, `tests/unit/test_scaffold.py`
 
 **Interfaces:**
-- Produces: `dub.__version__: str`; `dub.errors.DubError(code: str, message: str, context: dict, suggested_action: str|None)`; `dub.logging.get_logger(name) -> structlog.BoundLogger`; `dub.config.load_config(path: Path|None) -> Config` (pydantic model with `.hardware`, `.asr`, `.diarization`, `.translation`, `.tts`, `.audio`, `.timing`).
+-- Produces: `dubio.__version__: str`; `dubio.errors.DubError(code: str, message: str, context: dict, suggested_action: str|None)`; `dubio.logging.get_logger(name) -> structlog.BoundLogger`; `dubio.config.load_config(path: Path|None) -> Config` (pydantic model with `.hardware`, `.asr`, `.diarization`, `.translation`, `.tts`, `.audio`, `.timing`).
 
 - [ ] **Step 1: Write the failing test**
 
 `tests/unit/test_scaffold.py`:
 ```python
-import dub
-from dub.errors import DubError
-from dub.config import load_config
+import dubio
+from dubio.errors import DubError
+from dubio.config import load_config
 
 def test_version_present():
-    assert isinstance(dub.__version__, str) and dub.__version__
+    assert isinstance(dubio.__version__, str) and dubio.__version__
 
 def test_duberror_has_stable_id():
     err = DubError("TTS-RO-001", "Language mismatch", {"utt": "utt_1"}, "Run diagnostic")
@@ -58,7 +58,7 @@ Expected: FAIL (`ModuleNotFoundError: dub`).
 
 ```toml
 [project]
-name = "cartoon-dubber"
+name = "dubio"
 version = "0.0.1"
 requires-python = ">=3.12"
 dependencies = [
@@ -72,26 +72,26 @@ separation = ["demucs>=4"]
 llm = ["openai>=1.30"]
 dev = ["pytest>=8", "pytest-cov>=5"]
 [project.scripts]
-dub = "dub.cli:app"
-"dub-tts-test" = "dub.harness.tts_eval:app"
+dubio = "dubio.cli:app"
+"dubio-tts-test" = "dubio.harness.tts_eval:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
-packages = ["src/dub"]
+packages = ["src/dubio"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 markers = ["gpu: requires CUDA GPU", "model: downloads/loads heavy models"]
 addopts = "-m 'not gpu and not model'"
 ```
 
-- [ ] **Step 4: Create `src/dub/__init__.py`**
+-- [ ] **Step 4: Create `src/dubio/__init__.py`**
 
 ```python
 __version__ = "0.0.1"
 ```
 
-- [ ] **Step 5: Create `src/dub/errors.py`**
+-- [ ] **Step 5: Create `src/dubio/errors.py`**
 
 ```python
 class DubError(Exception):
@@ -104,7 +104,7 @@ class DubError(Exception):
         super().__init__(f"[{code}] {message} | {self.context}")
 ```
 
-- [ ] **Step 6: Create `src/dub/logging.py`**
+-- [ ] **Step 6: Create `src/dubio/logging.py`**
 
 ```python
 import logging, structlog
@@ -121,7 +121,7 @@ def get_logger(name: str):
     return structlog.get_logger(name)
 ```
 
-- [ ] **Step 7: Create `src/dub/config.py`**
+-- [ ] **Step 7: Create `src/dubio/config.py`**
 
 ```python
 from pathlib import Path
@@ -171,7 +171,7 @@ Expected: PASS (3 tests).
 - [ ] **Step 10: Commit**
 
 ```bash
-git init && git add -A && git commit -m "chore: scaffold dub package, config, logging, errors"
+git init && git add -A && git commit -m "chore: scaffold dubio package, config, logging, errors"
 ```
 
 ---
@@ -179,7 +179,7 @@ git init && git add -A && git commit -m "chore: scaffold dub package, config, lo
 ### Task 1: Audio Measurement Utilities
 
 **Files:**
-- Create: `src/dub/audio/measure.py`, `src/dub/audio/__init__.py`
+-- Create: `src/dubio/audio/measure.py`, `src/dubio/audio/__init__.py`
 - Test: `tests/unit/test_measure.py`
 
 **Interfaces:**
@@ -189,7 +189,7 @@ git init && git add -A && git commit -m "chore: scaffold dub package, config, lo
 
 ```python
 import numpy as np
-from dub.audio.measure import measure_loudness, duration_seconds
+from dubio.audio.measure import measure_loudness, duration_seconds
 
 def test_duration():
     sr = 48000
@@ -210,7 +210,7 @@ def test_loudness_of_sine_is_reasonable():
 
 Run: `pytest tests/unit/test_measure.py -v`  → FAIL (module missing).
 
-- [ ] **Step 3: Implement `src/dub/audio/measure.py`**
+-- [ ] **Step 3: Implement `src/dubio/audio/measure.py`**
 
 ```python
 from dataclasses import dataclass
@@ -260,7 +260,7 @@ git add -A && git commit -m "feat: audio loudness/duration measurement utils"
 ### Task 2: Romanian Text Fixtures & Similarity
 
 **Files:**
-- Create: `src/dub/utils/romanian.py`, `src/dub/utils/similarity.py`, `tests/fixtures/romanian_lines.py`
+-- Create: `src/dubio/utils/romanian.py`, `src/dubio/utils/similarity.py`, `tests/fixtures/romanian_lines.py`
 - Test: `tests/unit/test_romanian.py`
 
 **Interfaces:**
@@ -270,8 +270,8 @@ git add -A && git commit -m "feat: audio loudness/duration measurement utils"
 
 ```python
 from tests.fixtures.romanian_lines import ROMANIAN_TEST_LINES
-from dub.utils.romanian import has_diacritics
-from dub.utils.similarity import text_similarity
+from dubio.utils.romanian import has_diacritics
+from dubio.utils.similarity import text_similarity
 
 def test_fixture_lines_have_diacritics():
     assert any(has_diacritics(l) for l in ROMANIAN_TEST_LINES)
@@ -302,7 +302,7 @@ ROMANIAN_TEST_LINES = [
 ]
 ```
 
-- [ ] **Step 4: Implement `src/dub/utils/romanian.py`**
+-- [ ] **Step 4: Implement `src/dubio/utils/romanian.py`**
 
 ```python
 DIACRITICS = set("ăâîșțĂÂÎȘȚ")
@@ -316,7 +316,7 @@ def assert_diacritics_preserved(before: str, after: str) -> None:
         raise AssertionError(f"Diacritics stripped: {missing}")
 ```
 
-- [ ] **Step 5: Implement `src/dub/utils/similarity.py`**
+-- [ ] **Step 5: Implement `src/dubio/utils/similarity.py`**
 
 ```python
 import re
@@ -357,8 +357,8 @@ git add -A && git commit -m "feat: Romanian fixtures, diacritic guard, text simi
 ### Task 3: TTS & ASR Engine Interfaces + Fakes
 
 **Files:**
-- Create: `src/dub/engines/tts/base.py`, `src/dub/engines/tts/fake.py`
-- Create: `src/dub/engines/asr/base.py`, `src/dub/engines/asr/fake.py`
+-- Create: `src/dubio/engines/tts/base.py`, `src/dubio/engines/tts/fake.py`
+-- Create: `src/dubio/engines/asr/base.py`, `src/dubio/engines/asr/fake.py`
 - Test: `tests/unit/test_engine_fakes.py`
 
 **Interfaces:**
@@ -368,9 +368,9 @@ git add -A && git commit -m "feat: Romanian fixtures, diacritic guard, text simi
 
 ```python
 from pathlib import Path
-from dub.engines.tts.base import VoiceProfile
-from dub.engines.tts.fake import FakeTTS
-from dub.engines.asr.fake import FakeASR
+from dubio.engines.tts.base import VoiceProfile
+from dubio.engines.tts.fake import FakeTTS
+from dubio.engines.asr.fake import FakeASR
 
 def test_fake_tts_duration_scales_with_text(tmp_path):
     tts = FakeTTS(out_dir=tmp_path, chars_per_second=15.0)
@@ -429,8 +429,8 @@ class TTSEngine(Protocol):
 import hashlib
 from pathlib import Path
 import numpy as np
-from dub.audio.measure import write_wav
-from dub.engines.tts.base import TTSEngine, VoiceProfile, AudioArtifact
+from dubio.audio.measure import write_wav
+from dubio.engines.tts.base import TTSEngine, VoiceProfile, AudioArtifact
 
 class FakeTTS(TTSEngine):
     engine_id = "fake"
@@ -473,7 +473,7 @@ class ASREngine(Protocol):
 
 `fake.py`:
 ```python
-from dub.engines.asr.base import ASREngine, ASRResult, Segment
+from dubio.engines.asr.base import ASREngine, ASRResult, Segment
 
 class FakeASR(ASREngine):
     def __init__(self, scripted: dict[str, tuple[str, str]] | None = None):
@@ -500,7 +500,7 @@ git add -A && git commit -m "feat: TTS/ASR engine interfaces and deterministic f
 ### Task 4: TTS Evaluation Harness Core
 
 **Files:**
-- Create: `src/dub/harness/tts_eval.py`, `src/dub/harness/__init__.py`
+-- Create: `src/dubio/harness/tts_eval.py`, `src/dubio/harness/__init__.py`
 - Test: `tests/unit/test_tts_eval.py`
 
 **Interfaces:**
@@ -512,10 +512,10 @@ git add -A && git commit -m "feat: TTS/ASR engine interfaces and deterministic f
 ```python
 import json
 from pathlib import Path
-from dub.engines.tts.fake import FakeTTS
-from dub.engines.asr.fake import FakeASR
-from dub.engines.tts.base import VoiceProfile
-from dub.harness.tts_eval import evaluate
+from dubio.engines.tts.fake import FakeTTS
+from dubio.engines.asr.fake import FakeASR
+from dubio.engines.tts.base import VoiceProfile
+from dubio.harness.tts_eval import evaluate
 
 def test_evaluate_writes_metrics(tmp_path):
     out = tmp_path / "result"
@@ -543,9 +543,9 @@ Run: `pytest tests/unit/test_tts_eval.py -v` → FAIL.
 import json, shutil
 from pathlib import Path
 import typer
-from dub.audio.measure import load_wav, measure_loudness
-from dub.utils.similarity import text_similarity
-from dub.engines.tts.base import VoiceProfile
+from dubio.audio.measure import load_wav, measure_loudness
+from dubio.utils.similarity import text_similarity
+from dubio.engines.tts.base import VoiceProfile
 
 def evaluate(tts, asr, text: str, language: str, voice: VoiceProfile,
              out_dir: Path, expected_transcription: str | None = None) -> dict:
@@ -581,7 +581,7 @@ app = typer.Typer(help="TTS evaluation harness")
 @app.command()
 def main(text: str, language: str = "ro", engine: str = "fake",
          reference: str = typer.Option(None), out: str = "result"):
-    from dub.harness.factory import build_tts, build_asr  # Task 5
+    from dubio.harness.factory import build_tts, build_asr  # Task 5
     tts = build_tts(engine, out_dir=Path(out))
     asr = build_asr("fake" if engine == "fake" else "whisper")
     voice = VoiceProfile(id="cli", engine=engine, reference=reference)
@@ -606,7 +606,7 @@ git add -A && git commit -m "feat: TTS evaluation harness core with metrics.json
 ### Task 5: Engine Factory & `dub-tts-test` CLI
 
 **Files:**
-- Create: `src/dub/harness/factory.py`
+- Create: `src/dubio/harness/factory.py`
 - Test: `tests/integration/test_tts_test_cli.py`
 
 **Interfaces:**
@@ -616,7 +616,7 @@ git add -A && git commit -m "feat: TTS evaluation harness core with metrics.json
 
 ```python
 from typer.testing import CliRunner
-from dub.harness.tts_eval import app
+from dubio.harness.tts_eval import app
 
 def test_cli_fake_engine(tmp_path):
     runner = CliRunner()
@@ -634,23 +634,23 @@ Run: `pytest tests/integration/test_tts_test_cli.py -v` → FAIL (factory missin
 
 ```python
 from pathlib import Path
-from dub.errors import DubError
+from dubio.errors import DubError
 
 def build_tts(name: str, out_dir: Path | None = None, **kw):
     if name == "fake":
-        from dub.engines.tts.fake import FakeTTS
+        from dubio.engines.tts.fake import FakeTTS
         return FakeTTS(out_dir=out_dir or Path("result"))
     if name == "fish-s2-pro":
-        from dub.engines.tts.fish_s2 import FishS2TTS  # Task 6
+        from dubio.engines.tts.fish_s2 import FishS2TTS  # Task 6
         return FishS2TTS(out_dir=out_dir or Path("result"), **kw)
     raise DubError("ENGINE-001", f"Unknown TTS engine: {name}")
 
 def build_asr(name: str, **kw):
     if name == "fake":
-        from dub.engines.asr.fake import FakeASR
+        from dubio.engines.asr.fake import FakeASR
         return FakeASR()
     if name == "whisper":
-        from dub.engines.asr.whisper import WhisperASR  # M1 Task 4
+        from dubio.engines.asr.whisper import WhisperASR  # M1 Task 4
         return WhisperASR(**kw)
     raise DubError("ENGINE-002", f"Unknown ASR engine: {name}")
 ```
@@ -670,7 +670,7 @@ git add -A && git commit -m "feat: engine factory and dub-tts-test CLI"
 ### Task 6: Fish S2 Pro Adapter + Romanian Evaluation Gate
 
 **Files:**
-- Create: `src/dub/engines/tts/fish_s2.py`
+- Create: `src/dubio/engines/tts/fish_s2.py`
 - Create: `tests/tts/test_fish_romanian.py`
 - Create: `docs/tts-engines.md` (records the evaluation outcome)
 
@@ -683,10 +683,10 @@ git add -A && git commit -m "feat: engine factory and dub-tts-test CLI"
 ```python
 import pytest
 from pathlib import Path
-from dub.engines.tts.fish_s2 import FishS2TTS
-from dub.engines.asr.whisper import WhisperASR
-from dub.engines.tts.base import VoiceProfile
-from dub.harness.tts_eval import evaluate
+from dubio.engines.tts.fish_s2 import FishS2TTS
+from dubio.engines.asr.whisper import WhisperASR
+from dubio.engines.tts.base import VoiceProfile
+from dubio.harness.tts_eval import evaluate
 from tests.fixtures.romanian_lines import ROMANIAN_TEST_LINES
 
 @pytest.mark.gpu
@@ -713,9 +713,9 @@ Run (opt-in): `pytest -m "gpu and model" tests/tts/test_fish_romanian.py -v` →
 Wrap the Fish S2 Pro SDK/CLI. Skeleton (fill with the actual Fish API at build time — the interface contract is fixed, the internals are Fish-specific and isolated here):
 ```python
 from pathlib import Path
-from dub.engines.tts.base import TTSEngine, VoiceProfile, AudioArtifact
-from dub.audio.measure import load_wav, duration_seconds
-from dub.errors import DubError
+from dubio.engines.tts.base import TTSEngine, VoiceProfile, AudioArtifact
+from dubio.audio.measure import load_wav, duration_seconds
+from dubio.errors import DubError
 
 class FishS2TTS(TTSEngine):
     engine_id = "fish-s2-pro"

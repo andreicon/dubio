@@ -1,10 +1,10 @@
-# PRD: Cartoon Dubbing Pipeline
+# PRD: Video Dubbing Pipeline
 
 ## 1. Product Overview
 
 ### Working name
 
-Cartoon Dubbing Pipeline
+Video Dubbing Pipeline
 
 ### Purpose
 
@@ -14,7 +14,7 @@ The system takes an existing video in a source language, identifies dialogue and
 
 The first target language is Romanian.
 
-The first target use case is English-language cartoons dubbed into Romanian.
+The first target use case is English-language videos dubbed into Romanian.
 
 ### Core principle
 
@@ -50,7 +50,7 @@ The new system must make each stage independently testable and replaceable.
 
 ## Primary goals
 
-1. Produce high-quality Romanian cartoon dubbing from source video.
+1. Produce high-quality Romanian dubbing from source video.
 2. Preserve original music, ambience and sound effects wherever practical.
 3. Assign stable voices to individual characters.
 4. Maintain accurate dialogue timing.
@@ -84,7 +84,7 @@ The initial version will not attempt to:
 * Perform lip-sync animation.
 * Modify character mouth movements.
 * Create new video footage.
-* Automatically determine the canonical identity of every cartoon character.
+* Automatically determine the canonical identity of every video character.
 * Solve every possible language pair.
 * Guarantee perfect emotional or comedic equivalence.
 * Build a full web application before the processing pipeline is stable.
@@ -930,7 +930,7 @@ Requirements:
 Example:
 
 ```bash
-dub render episode-001
+dubio render episode-001
 ```
 
 Output:
@@ -1082,47 +1082,47 @@ The first interface should be a command-line application.
 Suggested commands:
 
 ```bash
-dub init <project>
+dubio init <project>
 
-dub extract <project>
+dubio extract <project>
 
-dub separate <project>
+dubio separate <project>
 
-dub transcribe <project>
+dubio transcribe <project>
 
-dub diarize <project>
+dubio diarize <project>
 
-dub translate <project>
+dubio translate <project>
 
-dub voices <project>
+dubio voices <project>
 
-dub synthesize <project>
+dubio synthesize <project>
 
-dub validate <project>
+dubio validate <project>
 
-dub mix <project>
+dubio mix <project>
 
-dub render <project>
+dubio render <project>
 
-dub run <project>
+dubio run <project>
 ```
 
 Individual utterances must be addressable:
 
 ```bash
-dub synthesize episode-001 --utterance utt_000142
+dubio synthesize episode-001 --utterance utt_000142
 ```
 
 Validation:
 
 ```bash
-dub validate episode-001 --utterance utt_000142
+dubio validate episode-001 --utterance utt_000142
 ```
 
 Regeneration:
 
 ```bash
-dub regenerate episode-001 --utterance utt_000142
+dubio regenerate episode-001 --utterance utt_000142
 ```
 
 ---
@@ -1134,7 +1134,7 @@ Every stage must be resumable.
 If the pipeline fails during TTS generation:
 
 ```bash
-dub run episode-001
+dubio run episode-001
 ```
 
 should reuse successful previous artifacts.
@@ -1259,14 +1259,14 @@ The system should provide human-readable logs by default and JSON logs as an opt
 Suggested repository:
 
 ```text
-cartoon-dubber/
+dubio/
 │
 ├── README.md
 ├── PRD.md
 ├── pyproject.toml
 │
 ├── src/
-│   └── dub/
+│   └── dubio/
 │       ├── cli.py
 │       │
 │       ├── pipeline/
@@ -1598,7 +1598,7 @@ output/episode-001-ro.mp4
 
 # 42. MVP Acceptance Criteria
 
-The MVP is complete when the system can take a short cartoon scene and:
+The MVP is complete when the system can take a short video scene and:
 
 1. Extract the source audio.
 2. Produce accurate source-language transcription.
@@ -1734,7 +1734,7 @@ TTS Evaluation Harness
 It should accept:
 
 ```bash
-dub-tts-test \
+dubio-tts-test \
   --engine fish-s2-pro \
   --language ro \
   --text "Ce faci, băiete?" \
@@ -1768,7 +1768,7 @@ result/
 
 Build the test harness first.
 
-Use it to evaluate Fish S2 Pro with Romanian diacritics and several representative cartoon lines.
+Use it to evaluate Fish S2 Pro with Romanian diacritics and several representative video-dubbing lines.
 
 Only after that test passes should the full dubbing pipeline be implemented.
 
@@ -1787,4 +1787,4 @@ A feature is considered complete when:
 * Its output is represented in the project manifest where appropriate.
 * A failed operation does not corrupt previously successful pipeline stages.
 
-The project is considered production-ready for the initial cartoon-dubbing use case when a complete episode can be processed from source video to final Romanian MP4 with minimal manual intervention, and individual problematic lines can be diagnosed and regenerated without restarting the project.
+The project is considered production-ready for the initial video-dubbing use case when a complete episode can be processed from source video to final Romanian MP4 with minimal manual intervention, and individual problematic lines can be diagnosed and regenerated without restarting the project.

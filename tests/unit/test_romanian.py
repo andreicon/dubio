@@ -1,7 +1,7 @@
 from tests.fixtures.romanian_lines import ROMANIAN_TEST_LINES
 
-from dub.utils.romanian import has_diacritics
-from dub.utils.similarity import text_similarity
+from dubio.utils.romanian import has_diacritics
+from dubio.utils.similarity import text_similarity
 
 
 def test_fixture_lines_have_diacritics():
