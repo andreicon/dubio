@@ -13,6 +13,7 @@ from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
+from dubio.pipeline.mix import mix_project
 from dubio.pipeline.synthesize import synthesize_project
 from dubio.pipeline.validate import validate_project
 from dubio.pipeline.translate import translate_project
@@ -191,3 +192,14 @@ def validate_cmd(
         asr_kwargs["model"] = config.asr.model
     validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
     typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
+
+
+@app.command(name="mix")
+def mix_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    mix_project(paths, config)
+    typer.echo(f"Mixed {paths.mix_dir / 'final.wav'}")
