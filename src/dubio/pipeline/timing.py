@@ -15,12 +15,13 @@ def target_duration(utt) -> float:
 def find_overlaps(utterances) -> list[Overlap]:
     ordered = sorted(utterances, key=lambda utt: utt.source.start)
     overlaps = []
-    for index in range(len(ordered) - 1):
-        a = ordered[index]
-        b = ordered[index + 1]
-        seconds = round(a.source.end - b.source.start, 3)
-        if seconds > 0 and not (a.overlap_allowed and b.overlap_allowed):
-            overlaps.append(Overlap(a.id, b.id, seconds))
+    for index, a in enumerate(ordered):
+        for b in ordered[index + 1 :]:
+            if b.source.start >= a.source.end:
+                break
+            seconds = round(min(a.source.end, b.source.end) - b.source.start, 3)
+            if seconds > 0 and not (a.overlap_allowed and b.overlap_allowed):
+                overlaps.append(Overlap(a.id, b.id, seconds))
     return overlaps
 
 
