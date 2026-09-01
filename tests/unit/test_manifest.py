@@ -28,7 +28,7 @@ def test_manifest_roundtrip_preserves_diacritics(tmp_path):
     loaded = Manifest.load(path)
 
     assert loaded.utterances[0].translation.text == "Ce faci, băiete?"
-    assert loaded.get_utterance("utt_000001").source.duration == 15.87 - 12.43
+    assert loaded.get_utterance("utt_000001").source.duration == 3.44
 
 
 def test_project_paths_match_brief(tmp_path):

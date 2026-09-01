@@ -37,7 +37,7 @@ class SourceSpan(BaseModel):
     @computed_field
     @property
     def duration(self) -> float:
-        return self.end - self.start
+        return round(self.end - self.start, 3)
 
 
 class Translation(BaseModel):
