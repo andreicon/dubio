@@ -1,0 +1,37 @@
+[project]
+name = "cartoon-dubber"
+version = "0.0.1"
+requires-python = ">=3.12"
+dependencies = [
+  "typer>=0.12",
+  "pydantic>=2.7",
+  "pyyaml>=6",
+  "numpy>=1.26",
+  "soundfile>=0.12",
+  "pyloudnorm>=0.1",
+  "structlog>=24",
+  "scipy>=1.13",
+]
+
+[project.optional-dependencies]
+asr = ["faster-whisper>=1.0"]
+diarization = ["pyannote.audio>=3.1"]
+separation = ["demucs>=4"]
+llm = ["openai>=1.30"]
+dev = ["pytest>=8", "pytest-cov>=5"]
+
+[project.scripts]
+dub = "dub.cli:app"
+"dub-tts-test" = "dub.harness.tts_eval:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dub"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+markers = ["gpu: requires CUDA GPU", "model: downloads/loads heavy models"]
+addopts = "-m 'not gpu and not model'"

@@ -1,0 +1,19 @@
+hardware:
+  device: cuda
+  max_tts_workers: 1
+asr:
+  engine: whisper
+  model: large-v3
+diarization:
+  engine: pyannote
+translation:
+  engine: llm
+tts:
+  engine: fish-s2-pro
+audio:
+  sample_rate: 48000
+  target_lufs: -16
+  true_peak_db: -1
+timing:
+  max_duration_ratio: 1.15
+  warning_duration_ratio: 1.05
