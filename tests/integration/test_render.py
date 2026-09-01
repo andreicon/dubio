@@ -1,4 +1,5 @@
 import shutil
+import json
 import subprocess
 
 import numpy as np
@@ -33,6 +34,24 @@ def _fixture_video(path):
     )
 
 
+def _probe_streams(path):
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return json.loads(result.stdout)["streams"]
+
+
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
 def test_render_muxes_final_audio_without_reencoding_video(tmp_path):
     paths = ProjectPaths(tmp_path, "ep1")
@@ -54,3 +73,13 @@ def test_render_muxes_final_audio_without_reencoding_video(tmp_path):
 
     assert out.exists()
     assert out.name == "ep1-ro.mp4"
+
+    source_streams = _probe_streams(source)
+    output_streams = _probe_streams(out)
+    source_video = next(stream for stream in source_streams if stream["codec_type"] == "video")
+    output_video = next(stream for stream in output_streams if stream["codec_type"] == "video")
+
+    assert output_video["codec_name"] == source_video["codec_name"]
+    assert output_video["width"] == source_video["width"]
+    assert output_video["height"] == source_video["height"]
+    assert output_video["r_frame_rate"] == source_video["r_frame_rate"]
