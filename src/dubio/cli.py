@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from dubio.config import load_config
+from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
@@ -12,8 +13,9 @@ from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
-from dubio.pipeline.separate import separate
+from dubio.pipeline.mix import mix_project
 from dubio.pipeline.synthesize import synthesize_project
+from dubio.pipeline.validate import validate_project
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.voices import map_character
 from dubio.pipeline.transcribe import transcribe
@@ -177,26 +179,27 @@ def normalize_cmd(
     typer.echo(f"Normalized {paths.manifest}")
 
 
-@app.command(name="separate")
-def separate_cmd(
+@app.command(name="validate")
+def validate_cmd(
     project: str = typer.Argument(...),
     projects_root: str = "projects",
-    no_separate: bool = typer.Option(False, "--no-separate"),
+    utterance: str | None = typer.Option(None),
 ):
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
+    asr_kwargs = {}
+    if config.asr.model is not None:
+        asr_kwargs["model"] = config.asr.model
+    validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
+    typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
 
-    if no_separate:
-        class DisabledSeparator:
-            def separate(self, source_wav, out_dir):
-                raise RuntimeError("separation disabled")
 
-        separator = DisabledSeparator()
-    else:
-        from dubio.engines.separation.demucs import DemucsSeparator
-
-        separator = DemucsSeparator()
-
-    separate(paths, separator, config, fallback_to_source=True)
-
-    typer.echo(f"Separated {paths.audio_dir / 'source.wav'}")
+@app.command(name="mix")
+def mix_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    mix_project(paths, config)
+    typer.echo(f"Mixed {paths.mix_dir / 'final.wav'}")
