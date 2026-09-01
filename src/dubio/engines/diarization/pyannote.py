@@ -12,5 +12,8 @@ class PyannoteDiarizer(DiarizationEngine):
         self._pipeline = pipeline
 
     def diarize(self, audio_path):
-        turns = self._pipeline(audio_path)
-        return [SpeakerTurn(turn.speaker, turn.start, turn.end) for turn in turns]
+        annotation = self._pipeline(audio_path)
+        turns = []
+        for segment, _, speaker in annotation.itertracks(yield_label=True):
+            turns.append(SpeakerTurn(speaker, segment.start, segment.end))
+        return turns
