@@ -19,7 +19,12 @@ def synthesize_utterance(manifest, utterance, tts: TTSEngine, cache: Cache, path
     voice = resolve_voice(manifest, utterance)
     text = _utterance_text(utterance)
     instructions = {}
-    params = {"pitch": voice.pitch, "speaking_rate": voice.speaking_rate, "gain_db": voice.gain_db}
+    params = {
+        "pitch": voice.pitch,
+        "speaking_rate": voice.speaking_rate,
+        "gain_db": voice.gain_db,
+        "reference": voice.reference,
+    }
     language = getattr(manifest.project, "target_language", "ro")
     key = tts_cache_key(tts.engine_id, tts.engine_version, voice.id, language, text, instructions, params)
 
@@ -58,5 +63,7 @@ def synthesize_project(paths, tts: TTSEngine, config, force: bool = False, utter
         synthesize_utterance(manifest, utterance, tts, cache, paths, force=force)
         return utterance
 
-    _report = run_jobs(utterances, worker, max_workers=config.hardware.max_tts_workers)
+    report = run_jobs(utterances, worker, max_workers=config.hardware.max_tts_workers)
     manifest.save(paths.manifest)
+    if report.failed:
+        raise RuntimeError(f"TTS synthesis failed for {len(report.failed)} utterance(s)")

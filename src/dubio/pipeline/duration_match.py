@@ -5,7 +5,11 @@ _CORRECTION_ORDER = ["speaking_rate", "retranslate", "time_stretch"]
 
 def evaluate_duration(utt, cfg) -> str:
     target = target_duration(utt)
-    generated = utt.tts.duration or 0.0
+    generated = utt.tts.duration
+    if generated is None:
+        status = "fail"
+        utt.validation.duration = status
+        return status
     status = duration_status(target, generated, cfg)
 
     utt.validation.duration = status

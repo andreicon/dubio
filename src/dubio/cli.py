@@ -136,8 +136,19 @@ def synthesize_cmd(
     projects_root: str = "projects",
     utterance: str | None = typer.Option(None),
     force: bool = typer.Option(False, "--force"),
-):
+): 
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
-    synthesize_project(paths, build_tts(config.tts.engine, out_dir=paths.tts_dir), config, force=force, utterance_id=utterance)
+    tts_kwargs = {}
+    if config.tts.model is not None:
+        tts_kwargs["model_version"] = config.tts.model
+    if config.tts.engine == "fish-s2-pro":
+        tts_kwargs["device"] = config.hardware.device
+    synthesize_project(
+        paths,
+        build_tts(config.tts.engine, out_dir=paths.tts_dir, **tts_kwargs),
+        config,
+        force=force,
+        utterance_id=utterance,
+    )
     typer.echo(f"Synthesized {paths.manifest}")

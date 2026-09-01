@@ -19,6 +19,20 @@ def test_evaluate_marks_fail_and_records_duration_diff():
     assert round(utt.validation.measurements["duration_diff"], 2) == 0.60
 
 
+def test_evaluate_treats_missing_tts_duration_as_fail():
+    utt = Utterance(
+        id="u",
+        speaker="s",
+        source=SourceSpan(text="x", start=0.0, end=2.80),
+    )
+
+    status = evaluate_duration(utt, TimingCfg())
+
+    assert status == "fail"
+    assert utt.validation.duration == "fail"
+    assert "duration_diff" not in utt.validation.measurements
+
+
 def test_next_correction_step_uses_brief_order():
     assert next_correction_step("fail", 0) == "speaking_rate"
     assert next_correction_step("warning", 1) == "retranslate"

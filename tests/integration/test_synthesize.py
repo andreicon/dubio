@@ -1,5 +1,6 @@
 from typer.testing import CliRunner
 from types import SimpleNamespace
+import pytest
 
 from dubio.cli import app
 from dubio.config import Config, EngineCfg
@@ -10,6 +11,7 @@ from dubio.pipeline.synthesize import synthesize_project
 from dubio.project.manifest import Character, Manifest, Project, SourceSpan, Translation, Utterance, Voice
 from dubio.project.paths import ProjectPaths
 from dubio.utils.cache import Cache
+from dubio.utils.cache import tts_cache_key
 
 
 def test_synthesize_utterance_sets_tts_fields_and_writes_audio(tmp_path):
@@ -117,7 +119,8 @@ def test_synthesize_project_continues_after_failure_and_persists_success(tmp_pat
 
     monkeypatch.setattr("dubio.pipeline.synthesize.synthesize_utterance", fake_synthesize_utterance)
 
-    synthesize_project(paths, FakeTTS(out_dir=paths.tts_dir), Config(hardware={"max_tts_workers": 2}), force=False)
+    with pytest.raises(RuntimeError, match=r"TTS synthesis failed for 1 utterance\(s\)"):
+        synthesize_project(paths, FakeTTS(out_dir=paths.tts_dir), Config(hardware={"max_tts_workers": 2}), force=False)
 
     updated = Manifest.load(paths.manifest)
     assert set(calls) == {"utt_000001", "utt_000002"}
@@ -158,3 +161,102 @@ def test_synthesize_utterance_uses_manifest_target_language(tmp_path):
     synthesize_utterance(manifest, utterance, RecordingTTS(), Cache(paths.tts_dir / "_cache"), paths)
 
     assert observed["language"] == "spa"
+
+
+def test_tts_cache_key_changes_when_voice_reference_changes():
+    base = tts_cache_key(
+        "fake",
+        "0",
+        "voice_bugs",
+        "ron",
+        "Ce faci?",
+        {},
+        {"pitch": 0, "speaking_rate": 1.0, "gain_db": 0},
+    )
+    changed = tts_cache_key(
+        "fake",
+        "0",
+        "voice_bugs",
+        "ron",
+        "Ce faci?",
+        {},
+        {"pitch": 0, "speaking_rate": 1.0, "gain_db": 0, "reference": "voices/better.wav"},
+    )
+
+    assert base != changed
+
+
+def test_synthesize_cli_passes_config_into_tts_builder(tmp_path, monkeypatch):
+    paths = ProjectPaths(tmp_path, "ep1")
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="fake", reference=None)},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="What?", start=0.0, end=1.0),
+                translation=Translation(text="Ce faci?", status="approved"),
+            )
+        ],
+    )
+    manifest.save(paths.manifest)
+
+    from dubio import cli as cli_module
+
+    cli_module.load_config = lambda path=None: Config(tts=EngineCfg(engine="fake", model="custom-model"), hardware={"device": "cpu", "max_tts_workers": 1})
+
+    observed = {}
+
+    def fake_build_tts(name, out_dir=None, **kw):
+        observed["name"] = name
+        observed["out_dir"] = out_dir
+        observed["kw"] = kw
+        return FakeTTS(out_dir=out_dir)
+
+    monkeypatch.setattr(cli_module, "build_tts", fake_build_tts)
+
+    result = CliRunner().invoke(
+        app,
+        ["synthesize", "ep1", "--projects-root", str(tmp_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert observed["name"] == "fake"
+    assert observed["kw"] == {"model_version": "custom-model"}
+
+
+def test_synthesize_cli_exits_non_zero_on_partial_failure(tmp_path, monkeypatch):
+    paths = ProjectPaths(tmp_path, "ep1")
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="fake", reference=None)},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="What?", start=0.0, end=1.0),
+                translation=Translation(text="Ce faci?", status="approved"),
+            )
+        ],
+    )
+    manifest.save(paths.manifest)
+
+    from dubio import cli as cli_module
+
+    cli_module.load_config = lambda path=None: Config(tts=EngineCfg(engine="fake"), hardware={"device": "cpu", "max_tts_workers": 1})
+    monkeypatch.setattr(cli_module, "build_tts", lambda name, out_dir=None, **kw: FakeTTS(out_dir=out_dir))
+
+    def fail_once(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(cli_module, "synthesize_project", fail_once)
+
+    result = CliRunner().invoke(
+        app,
+        ["synthesize", "ep1", "--projects-root", str(tmp_path)],
+    )
+
+    assert result.exit_code != 0
