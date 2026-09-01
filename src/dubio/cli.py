@@ -172,8 +172,6 @@ def regenerate_cmd(
     if utterance is None:
         raise typer.BadParameter("Use --utterance with regenerate")
 
-    from dubio.engines.asr.fake import FakeASR
-
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
     tts_kwargs = {}
@@ -184,7 +182,7 @@ def regenerate_cmd(
 
     engines = {
         "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir, **tts_kwargs),
-        "asr": FakeASR(),
+        "asr": build_asr(config.asr.engine, model=config.asr.model),
     }
     regenerate_utterance(paths, utterance, engines, config)
     typer.echo(f"Regenerated {utterance}")

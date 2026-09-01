@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable
 
 from dubio.config import Config
@@ -17,6 +19,8 @@ from dubio.pipeline.transcribe import transcribe
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.validate import validate_project
 from dubio.project.paths import ProjectPaths
+from dubio.project.manifest import Manifest
+from dubio.utils.hashing import stable_hash
 
 log = get_logger("run")
 
@@ -28,11 +32,128 @@ class StageSpec:
     func: Callable[[ProjectPaths, Config, dict], None]
 
 
-def stage_complete(spec: StageSpec, paths: ProjectPaths) -> bool:
+def _run_state_dir(paths: ProjectPaths) -> Path:
+    return paths.base / ".run"
+
+
+def _stage_state_path(paths: ProjectPaths, spec: StageSpec) -> Path:
+    return _run_state_dir(paths) / f"{spec.name}.json"
+
+
+def _load_manifest(paths: ProjectPaths) -> Manifest:
+    return Manifest.load(paths.manifest)
+
+
+def _stat_payload(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    stat = path.stat()
+    return {"path": str(path), "mtime_ns": stat.st_mtime_ns, "size": stat.st_size}
+
+
+def _current_fingerprint(spec_name: str, paths: ProjectPaths, config: Config) -> str:
+    manifest = _load_manifest(paths)
+    source = Path(manifest.project.source)
+    audio_source = paths.audio_dir / "source.wav"
+    music = paths.audio_dir / "music.wav"
+    sfx = paths.audio_dir / "sfx.wav"
+    transcript = paths.audio_dir / "transcript.json"
+    diarization = paths.audio_dir / "diarization.json"
+    translation = paths.base / "translation.json"
+
+    if spec_name == "extract":
+        payload = {
+            "source": _stat_payload(source),
+            "sample_rate": config.audio.sample_rate,
+        }
+    elif spec_name == "separate":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "source_audio": _stat_payload(audio_source),
+        }
+    elif spec_name == "transcribe":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "source_audio": _stat_payload(audio_source),
+            "asr": {"engine": config.asr.engine, "model": config.asr.model},
+        }
+    elif spec_name == "diarize":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "source_audio": _stat_payload(audio_source),
+            "diarization": {"engine": config.diarization.engine, "model": config.diarization.model},
+        }
+    elif spec_name == "translate":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "translator": {"engine": config.translation.engine, "model": config.translation.model},
+        }
+    elif spec_name == "synthesize":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "tts": {"engine": config.tts.engine, "model": config.tts.model},
+        }
+    elif spec_name == "normalize":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "tts_outputs": [_stat_payload(paths.tts_dir / f"{utt.id}.wav") for utt in manifest.utterances],
+            "audio": config.audio.model_dump(mode="json"),
+        }
+    elif spec_name == "validate":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "processed_outputs": [_stat_payload(paths.processed_dir / f"{utt.id}.wav") for utt in manifest.utterances],
+            "asr": {"engine": config.asr.engine, "model": config.asr.model},
+        }
+    elif spec_name == "mix":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "music": _stat_payload(music),
+            "sfx": _stat_payload(sfx),
+            "processed_outputs": [_stat_payload(paths.processed_dir / f"{utt.id}.wav") for utt in manifest.utterances],
+            "audio": config.audio.model_dump(mode="json"),
+        }
+    elif spec_name == "render":
+        payload = {
+            "manifest": manifest.model_dump(mode="json"),
+            "source_video": _stat_payload(source),
+            "final_audio": _stat_payload(paths.mix_dir / "final.wav"),
+        }
+    else:
+        payload = {"manifest": manifest.model_dump(mode="json")}
+
+    return stable_hash(spec_name, payload)
+
+
+def _load_stage_state(paths: ProjectPaths, spec: StageSpec) -> dict | None:
+    state_path = _stage_state_path(paths, spec)
+    if not state_path.exists():
+        return None
+    return json.loads(state_path.read_text(encoding="utf-8"))
+
+
+def _write_stage_state(paths: ProjectPaths, spec: StageSpec, config: Config) -> None:
+    state_path = _stage_state_path(paths, spec)
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(json.dumps({"fingerprint": _current_fingerprint(spec.name, paths, config)}, indent=2), encoding="utf-8")
+
+
+def _artifact_ready(spec: StageSpec, paths: ProjectPaths) -> bool:
     try:
         return bool(spec.artifact_check(paths))
     except Exception:
         return False
+
+
+def stage_complete(spec: StageSpec, paths: ProjectPaths, config: Config | None = None) -> bool:
+    if not _artifact_ready(spec, paths):
+        return False
+    if config is None:
+        return True
+    state = _load_stage_state(paths, spec)
+    if not state:
+        return False
+    return state.get("fingerprint") == _current_fingerprint(spec.name, paths, config)
 
 
 STAGES: list[StageSpec] = [
@@ -60,7 +181,7 @@ def run(paths: ProjectPaths, config: Config, engines: dict, force_from: str | No
         if spec.name == force_from:
             forcing = True
 
-        if not forcing and stage_complete(spec, paths):
+        if not forcing and stage_complete(spec, paths, config):
             log.info("stage_skipped", stage=spec.name)
             continue
 
@@ -75,3 +196,4 @@ def run(paths: ProjectPaths, config: Config, engines: dict, force_from: str | No
             log.error("stage_failed", stage=spec.name, code=error.code, message=error.message)
             raise error from exc
         log.info("stage_done", stage=spec.name)
+        _write_stage_state(paths, spec, config)

@@ -1,4 +1,4 @@
-Status: completed and committed.
+Status: completed and committed, with fix follow-up and explicit diarizer failure.
 
 Files changed:
 - `src/dubio/pipeline/run.py`
@@ -15,9 +15,15 @@ Test results:
 
 Commits:
 - `1d48e2a` `feat(run): add resumable orchestrator`
+- `0fd4ad9` `fix(run): reject invalid force-from`
+- `89b1168` `fix(cli): lazy-load diarizer fallback`
+- `b9ccde4` `fix(cli): fail on unknown diarizer`
 
 Final verification:
 - `python3 -m compileall src tests` passed and compiled the touched source and test files successfully.
+- The fix patch was applied and the invalid-stage test now asserts `DubError`.
+- The lazy diarizer fallback was applied in `dubio run`.
+- The CLI now raises `DubError` for unsupported diarization engines.
 
 Concerns:
 - Full pytest execution is still pending in an environment with `pytest` installed.

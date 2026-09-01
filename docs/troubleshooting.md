@@ -12,5 +12,7 @@ Stable error IDs:
 | `TTS-RO-001` | `synthesize` | Romanian TTS failed |
 | `MIX-001` | `mix` | Dialogue clip placement failed |
 | `RENDER-001` | `render` | Final video render failed |
+| `RUN-001` | `run` | A pipeline stage failed |
+| `RUN-002` | `run` | Invalid `--force-from` stage |
 
 If a run stops early, check `validation/report.json`, the stage logs, and the manifest for the last completed artifact. The `run` command reuses existing artifacts and only reruns stages that are missing or forced.
