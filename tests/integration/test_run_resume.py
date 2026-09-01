@@ -82,7 +82,8 @@ def test_run_skips_completed_stages_and_forces_resume(tmp_path):
     diarize(paths, diarizer, load_config(None))
 
     manifest = Manifest.load(paths.manifest)
-    map_character(manifest, "SPEAKER_00", "Bugs")
+    map_character(manifest, "SPEAKER_00", "Bugs", voice="bugs_ro")
+    manifest.voices["bugs_ro"] = manifest.voices.get("bugs_ro") or __import__("dubio.project.manifest", fromlist=["Voice"]).Voice(engine="fake")
     manifest.save(paths.manifest)
 
     original_source = (paths.audio_dir / "source.wav").stat().st_mtime_ns
