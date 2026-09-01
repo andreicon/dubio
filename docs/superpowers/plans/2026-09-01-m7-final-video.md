@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Mux the final mixed audio into the original video without re-encoding video to produce `output/<id>-ro.mp4`, add a resumable/cache-aware `dub run` orchestrator plus `dub regenerate --utterance`, and prove the full MVP acceptance criteria with an end-to-end integration test.
+**Goal:** Mux the final mixed audio into the original video without re-encoding video to produce `output/<id>-ro.mp4`, add a resumable/cache-aware `dubio run` orchestrator plus `dubio regenerate --utterance`, and prove the full MVP acceptance criteria with an end-to-end integration test.
 
 **Architecture:** `pipeline/render.py` uses FFmpeg stream-copy for video and replaces audio with `mix/final.wav`. `pipeline/run.py` sequences all stages, skipping completed ones via a per-stage completion check (artifact presence + input/config hash), and isolates failures with stable error IDs. `regenerate` reruns only the affected utterance's synth→normalize→validate and re-mixes.
 
@@ -81,7 +81,7 @@ def render(paths, config):
     return out
 ```
 
-- [ ] **Step 4: Add `dub render <project>` CLI**.
+- [ ] **Step 4: Add `dubio render <project>` CLI**.
 
 - [ ] **Step 5: Run to verify pass** → PASS.
 
@@ -93,7 +93,7 @@ git add -A && git commit -m "feat: FFmpeg video mux render (stream-copy video)"
 
 ---
 
-### Task 2: Resumable Orchestrator (`dub run`)
+### Task 2: Resumable Orchestrator (`dubio run`)
 
 **Files:**
 - Create: `src/dubio/pipeline/run.py`
@@ -184,14 +184,14 @@ def run(paths, config, engines, force_from: str | None = None) -> None:
         log.info("stage_done", stage=spec.name)
 ```
 
-- [ ] **Step 4: Add integration test** running `run()` twice with fake engines over the 2s fixture; second run logs skips and does not overwrite artifacts (assert mtimes unchanged for early stages). Add `dub run <project> [--force-from STAGE]` CLI.
+- [ ] **Step 4: Add integration test** running `run()` twice with fake engines over the 2s fixture; second run logs skips and does not overwrite artifacts (assert mtimes unchanged for early stages). Add `dubio run <project> [--force-from STAGE]` CLI.
 
 - [ ] **Step 5: Run to verify pass** → PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add -A && git commit -m "feat: resumable dub run orchestrator with stage skip"
+git add -A && git commit -m "feat: resumable dubio run orchestrator with stage skip"
 ```
 
 ---
@@ -203,7 +203,7 @@ git add -A && git commit -m "feat: resumable dub run orchestrator with stage ski
 - Test: `tests/integration/test_regenerate.py`
 
 **Interfaces:**
-- Produces: `regenerate_utterance(paths, uid, engines, config) -> None` running synth(force)→normalize→validate for just `uid`, then `mix_project` to rebuild the final mix — without touching other utterances' artifacts. CLI `dub regenerate <project> --utterance utt_X`.
+- Produces: `regenerate_utterance(paths, uid, engines, config) -> None` running synth(force)→normalize→validate for just `uid`, then `mix_project` to rebuild the final mix — without touching other utterances' artifacts. CLI `dubio regenerate <project> --utterance utt_X`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -262,7 +262,7 @@ def regenerate_utterance(paths, uid, engines, config) -> None:
     mix_project(paths, config)  # re-composite final with the updated clip
 ```
 
-- [ ] **Step 4: Add CLI** `dub regenerate --utterance`.
+- [ ] **Step 4: Add CLI** `dubio regenerate --utterance`.
 
 - [ ] **Step 5: Run to verify pass** → PASS.
 

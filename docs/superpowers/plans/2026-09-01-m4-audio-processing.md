@@ -216,7 +216,7 @@ def normalize_project(paths, config) -> None:
     m.save(paths.manifest)
 ```
 
-- [ ] **Step 4: Add CLI** `dub normalize <project> [--utterance utt_X]`.
+- [ ] **Step 4: Add CLI** `dubio normalize <project> [--utterance utt_X]`.
 
 - [ ] **Step 5: Run to verify pass** → PASS.
 

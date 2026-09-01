@@ -201,7 +201,7 @@ git add -A && git commit -m "feat: language + re-ASR text validators"
 - Test: `tests/unit/test_score.py`, `tests/integration/test_validate_stage.py`
 
 **Interfaces:**
-- Produces: `composite_score(results: list[CheckResult], weights: dict|None) -> tuple[int, dict]` (0–100 + per-check raw map, PRD §30); `validate_utterance(m, utt, asr, config) -> dict` writing statuses into `utt.validation.*`, storing raw `measurements["checks"]` and `validation.score`; `validate_project(paths, asr, config) -> dict` writing `validation/report.json`. CLI `dub validate <project> [--utterance utt_X]`.
+- Produces: `composite_score(results: list[CheckResult], weights: dict|None) -> tuple[int, dict]` (0–100 + per-check raw map, PRD §30); `validate_utterance(m, utt, asr, config) -> dict` writing statuses into `utt.validation.*`, storing raw `measurements["checks"]` and `validation.score`; `validate_project(paths, asr, config) -> dict` writing `validation/report.json`. CLI `dubio validate <project> [--utterance utt_X]`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -281,7 +281,7 @@ def validate_project(paths, asr, config) -> dict:
     return report
 ```
 
-- [ ] **Step 5: Add integration test** over a 2-utterance manifest with `FakeASR` + a processed clip, asserting `report.json` exists, scores present, overlap flagged. Add CLI `dub validate`.
+- [ ] **Step 5: Add integration test** over a 2-utterance manifest with `FakeASR` + a processed clip, asserting `report.json` exists, scores present, overlap flagged. Add CLI `dubio validate`.
 
 - [ ] **Step 6: Run to verify pass** → PASS.
 

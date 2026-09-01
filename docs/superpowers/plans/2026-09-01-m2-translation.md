@@ -228,7 +228,7 @@ git add -A && git commit -m "feat: LLM translator adapter (OpenAI-compatible, in
 
 **Interfaces:**
 - Consumes: `Translator`, `TranslationRequest`, `Candidate`, `Manifest`, `timing.target_duration`.
-- Produces: `select_candidate(cands, target) -> Candidate` (closest fit that does not overshoot beyond tolerance; prefer largest that is ≤ target*1.15, else the shortest); `translate_project(paths, translator, config)` filling each utterance's `translation.text`, `translation.candidates`, `translation.status="translated"`; writes `translation.json`. `dub translate <project>` and `dub translate <project> --utterance utt_XXXXXX --approve` / `--set "text"`.
+- Produces: `select_candidate(cands, target) -> Candidate` (closest fit that does not overshoot beyond tolerance; prefer largest that is ≤ target*1.15, else the shortest); `translate_project(paths, translator, config)` filling each utterance's `translation.text`, `translation.candidates`, `translation.status="translated"`; writes `translation.json`. `dubio translate <project>` and `dubio translate <project> --utterance utt_XXXXXX --approve` / `--set "text"`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -288,7 +288,7 @@ def translate_project(paths, translator, config) -> None:
 
 - [ ] **Step 4: Implement integration test** using `FakeTranslator` over a 2-utterance manifest; assert chosen text set, candidates persisted, diacritics preserved, status `translated`.
 
-- [ ] **Step 5: Add CLI** `dub translate` (batch) and manual edit/approve:
+- [ ] **Step 5: Add CLI** `dubio translate` (batch) and manual edit/approve:
   - `--utterance utt_X --set "Ce faci?"` overwrites `translation.text`, status `edited`.
   - `--utterance utt_X --approve` sets status `approved`.
 

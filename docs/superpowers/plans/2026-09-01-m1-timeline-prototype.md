@@ -202,7 +202,7 @@ def init(project: str, source: str = typer.Option(...),
 - [ ] **Step 5: Commit**
 
 ```bash
-git add -A && git commit -m "feat: dub init command and CLI skeleton"
+git add -A && git commit -m "feat: dubio init command and CLI skeleton"
 ```
 
 ---
@@ -287,7 +287,7 @@ def extract(paths, config) -> MediaInfo:
     return info
 ```
 
-- [ ] **Step 5: Add `dub extract` command** wiring `extract()` and storing `MediaInfo` in a sidecar `audio/media_info.json`.
+- [ ] **Step 5: Add `dubio extract` command** wiring `extract()` and storing `MediaInfo` in a sidecar `audio/media_info.json`.
 
 - [ ] **Step 6: Run to verify pass** → PASS.
 
@@ -375,7 +375,7 @@ class WhisperASR(ASREngine):
         return info.language
 ```
 
-- [ ] **Step 5: Add GPU-marked test** in `tests/unit/test_whisper_marked.py` transcribing the Task-3 fixture and asserting a non-empty result (skipped by default). Add `dub transcribe` command.
+- [ ] **Step 5: Add GPU-marked test** in `tests/unit/test_whisper_marked.py` transcribing the Task-3 fixture and asserting a non-empty result (skipped by default). Add `dubio transcribe` command.
 
 - [ ] **Step 6: Run to verify pass** → `pytest tests/integration/test_transcribe.py -v` PASS.
 
@@ -455,7 +455,7 @@ def diarize(paths, diarizer, config) -> None:
     m.save(paths.manifest)
 ```
 
-- [ ] **Step 5: Implement `engines/diarization/pyannote.py`** (GPU-marked): wrap `pyannote.audio.Pipeline`, convert to `SpeakerTurn`. Add `dub diarize` command + GPU-marked test.
+- [ ] **Step 5: Implement `engines/diarization/pyannote.py`** (GPU-marked): wrap `pyannote.audio.Pipeline`, convert to `SpeakerTurn`. Add `dubio diarize` command + GPU-marked test.
 
 - [ ] **Step 6: Run to verify pass** → PASS.
 
@@ -474,7 +474,7 @@ git add -A && git commit -m "feat: diarization interface, fake, pyannote adapter
 - Test: `tests/unit/test_character_map.py`
 
 **Interfaces:**
-- Produces: `map_character(manifest, speaker_id, name, voice=None) -> None` populating `manifest.characters[speaker_id]`; ids like `SPEAKER_00` stay separate from names (PRD §12). `dub voices <project> --map SPEAKER_00=Bugs`.
+- Produces: `map_character(manifest, speaker_id, name, voice=None) -> None` populating `manifest.characters[speaker_id]`; ids like `SPEAKER_00` stay separate from names (PRD §12). `dubio voices <project> --map SPEAKER_00=Bugs`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -500,7 +500,7 @@ def map_character(manifest, speaker_id: str, name: str, voice: str | None = None
     manifest.characters[speaker_id] = Character(name=name, voice=voice)
 ```
 
-- [ ] **Step 4: Add `dub voices --map SPEAKER_00=Bugs` command** parsing pairs, loading/saving manifest.
+- [ ] **Step 4: Add `dubio voices --map SPEAKER_00=Bugs` command** parsing pairs, loading/saving manifest.
 
 - [ ] **Step 5: Run to verify pass** → PASS.
 
