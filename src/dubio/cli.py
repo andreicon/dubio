@@ -3,9 +3,11 @@ from pathlib import Path
 import typer
 
 from dubio.config import load_config
+from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
+from dubio.pipeline.diarize import diarize
 from dubio.pipeline.transcribe import transcribe
 
 
@@ -52,3 +54,10 @@ def transcribe_cmd(project: str = typer.Argument(...), projects_root: str = "pro
     paths = ProjectPaths(Path(projects_root), project)
     transcribe(paths, FakeASR(), load_config(None))
     typer.echo(f"Transcribed {paths.audio_dir / 'transcript.json'}")
+
+
+@app.command(name="diarize")
+def diarize_cmd(project: str = typer.Argument(...), projects_root: str = "projects"):
+    paths = ProjectPaths(Path(projects_root), project)
+    diarize(paths, FakeDiarizer([]), load_config(None))
+    typer.echo(f"Diarized {paths.audio_dir / 'diarization.json'}")
