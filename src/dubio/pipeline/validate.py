@@ -46,11 +46,20 @@ def validate_project(paths, asr, config, utterance_id: str | None = None) -> dic
     utterances = [manifest.get_utterance(utterance_id)] if utterance_id else manifest.utterances
     reports = [validate_utterance(manifest, utterance, asr, config) for utterance in utterances]
 
-    overlaps = [check.detail for check in check_overlaps(manifest.utterances)]
+    overlap_results = check_overlaps(manifest.utterances)
+    overlaps = [check.detail for check in overlap_results]
     for utterance in manifest.utterances:
-        utterance.validation.overlap = "fail" if any(
-            overlap["a"] == utterance.id or overlap["b"] == utterance.id for overlap in overlaps
-        ) else "pass"
+        statuses = [
+            result.status
+            for result in overlap_results
+            if result.detail.get("a") == utterance.id or result.detail.get("b") == utterance.id
+        ]
+        if "fail" in statuses:
+            utterance.validation.overlap = "fail"
+        elif "warning" in statuses:
+            utterance.validation.overlap = "warning"
+        else:
+            utterance.validation.overlap = "pass"
 
     report = {"project": manifest.project.id, "utterances": reports, "overlaps": overlaps}
     paths.validation_dir.mkdir(parents=True, exist_ok=True)
