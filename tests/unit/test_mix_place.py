@@ -17,12 +17,12 @@ def test_place_clip_at_offset():
 
 
 def test_place_clip_raises_when_clip_does_not_fit_and_fit_is_false():
-    sr = 48000
+    sr = 10
     bus = np.zeros(10)
     clip = np.ones(4)
 
     with pytest.raises(DubError, match="overruns"):
-        place_clip(bus, clip, start_s=0.75, sr=sr, fit=False)
+        place_clip(bus, clip, start_s=0.8, sr=sr, fit=False)
 
 
 def test_mix_tracks_sums_with_gain():

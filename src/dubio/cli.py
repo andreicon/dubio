@@ -14,6 +14,7 @@ from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.mix import mix_project
+from dubio.pipeline.separate import separate
 from dubio.pipeline.synthesize import synthesize_project
 from dubio.pipeline.validate import validate_project
 from dubio.pipeline.translate import translate_project
@@ -192,6 +193,30 @@ def validate_cmd(
         asr_kwargs["model"] = config.asr.model
     validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
     typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
+
+
+@app.command(name="separate")
+def separate_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    no_separate: bool = typer.Option(False, "--no-separate"),
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+
+    if no_separate:
+        class DisabledSeparator:
+            def separate(self, source_wav, out_dir):
+                raise RuntimeError("separation disabled")
+
+        separator = DisabledSeparator()
+    else:
+        from dubio.engines.separation.demucs import DemucsSeparator
+
+        separator = DemucsSeparator()
+
+    separate(paths, separator, config, fallback_to_source=True)
+    typer.echo(f"Separated {paths.audio_dir / 'source.wav'}")
 
 
 @app.command(name="mix")
