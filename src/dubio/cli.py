@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from dubio.config import load_config
+from dubio.errors import DubError
 from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
@@ -259,8 +260,8 @@ def run_cmd(
             from dubio.engines.diarization.pyannote import PyannoteDiarizer
 
             diarizer = PyannoteDiarizer()
-        except Exception:
-            diarizer = FakeDiarizer([])
+        except Exception as exc:  # noqa: BLE001
+            raise DubError("ENGINE-003", f"Unsupported diarization engine: {config.diarization.engine}", {"error": str(exc)}) from exc
     engines = {
         "separator": DemucsSeparator(),
         "asr": build_asr(config.asr.engine, model=config.asr.model),
