@@ -43,7 +43,7 @@ def build_dialogue_bus(manifest, paths, sr: int, total_samples: int) -> tuple[np
     bus = np.zeros(total_samples)
     failed: list[str] = []
 
-    utterances = list(manifest.utterances)
+    utterances = sorted(manifest.utterances, key=lambda utterance: utterance.source.start)
     for index, utterance in enumerate(utterances):
         clip_path = Path(paths.processed_dir) / f"{utterance.id}.wav"
         if not clip_path.exists():
@@ -93,8 +93,10 @@ def mix_project(paths, config) -> None:
     if sr != music_sr:
         raise DubError("MIX-004", "Configured sample rate does not match stems", {"configured": sr, "stems": music_sr})
 
-    dialogue, failed = build_dialogue_bus(manifest, paths, sr, max(len(music), len(sfx)))
-    final = mix_tracks(dialogue, music, sfx, {"dialogue": 0.0, "music": -6.0, "sfx": 0.0})
+    last_end = max((int(utterance.source.end * sr) for utterance in manifest.utterances), default=0)
+    total_samples = max(len(music), len(sfx), last_end)
+    dialogue, failed = build_dialogue_bus(manifest, paths, sr, total_samples)
+    final = mix_tracks(dialogue, music, sfx, {"dialogue": 0.0, "music": 0.0, "sfx": 0.0})
 
     paths.mix_dir.mkdir(parents=True, exist_ok=True)
     write_wav(paths.mix_dir / "dialogue.wav", dialogue, sr)

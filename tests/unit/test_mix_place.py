@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from dubio.errors import DubError
 from dubio.pipeline.mix import mix_tracks, place_clip
 
 
@@ -20,7 +21,7 @@ def test_place_clip_raises_when_clip_does_not_fit_and_fit_is_false():
     bus = np.zeros(10)
     clip = np.ones(4)
 
-    with pytest.raises(Exception, match="overruns"):
+    with pytest.raises(DubError, match="overruns"):
         place_clip(bus, clip, start_s=0.75, sr=sr, fit=False)
 
 
