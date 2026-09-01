@@ -52,7 +52,10 @@ def _probe_streams(path):
     return json.loads(result.stdout)["streams"]
 
 
-@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg required")
+@pytest.mark.skipif(
+    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+    reason="ffmpeg and ffprobe required",
+)
 def test_render_muxes_final_audio_without_reencoding_video(tmp_path):
     paths = ProjectPaths(tmp_path, "ep1")
     source = tmp_path / "source.mp4"
