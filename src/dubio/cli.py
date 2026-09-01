@@ -6,14 +6,15 @@ from dubio.config import load_config
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
+from dubio.harness.factory import build_tts
 from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
+from dubio.pipeline.synthesize import synthesize_project
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.voices import map_character
 from dubio.pipeline.transcribe import transcribe
-
 
 app = typer.Typer(help="Video Dubbing Pipeline")
 
@@ -127,3 +128,16 @@ def translate_cmd(
     config = load_config(None)
     translate_project(paths, _build_translator(config, paths), config)
     typer.echo(f"Translated {paths.manifest}")
+
+
+@app.command(name="synthesize")
+def synthesize_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    utterance: str | None = typer.Option(None),
+    force: bool = typer.Option(False, "--force"),
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    synthesize_project(paths, build_tts(config.tts.engine, out_dir=paths.tts_dir), config, force=force, utterance_id=utterance)
+    typer.echo(f"Synthesized {paths.manifest}")

@@ -1,0 +1,75 @@
+from typer.testing import CliRunner
+
+from dubio.cli import app
+from dubio.config import Config, EngineCfg
+from dubio.engines.tts.fake import FakeTTS
+from dubio.pipeline.synthesize import synthesize_utterance
+from dubio.project.manifest import Character, Manifest, Project, SourceSpan, Translation, Utterance, Voice
+from dubio.project.paths import ProjectPaths
+from dubio.utils.cache import Cache
+
+
+def test_synthesize_utterance_sets_tts_fields_and_writes_audio(tmp_path):
+    paths = ProjectPaths(tmp_path, "ep1")
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"),
+    )
+    manifest.characters["SPEAKER_00"] = Character(name="Bugs", voice="voice_bugs")
+    manifest.voices["voice_bugs"] = Voice(engine="fake", reference=None)
+    utterance = Utterance(
+        id="utt_000001",
+        speaker="SPEAKER_00",
+        source=SourceSpan(text="What?", start=0.0, end=1.0),
+        translation=Translation(text="Ce faci?", status="approved"),
+    )
+    manifest.utterances.append(utterance)
+
+    tts = FakeTTS(out_dir=paths.tts_dir)
+    synthesize_utterance(manifest, utterance, tts, Cache(paths.tts_dir / "_cache"), paths)
+
+    assert utterance.tts.engine == "fake"
+    assert utterance.tts.voice == "voice_bugs"
+    assert utterance.tts.engine_version == "0"
+    assert utterance.tts.duration is not None and utterance.tts.duration > 0
+    assert utterance.tts.file is not None
+    assert (paths.tts_dir / "utt_000001.wav").exists()
+
+
+def test_synthesize_cli_regenerates_one_utterance_and_persists_manifest(tmp_path):
+    paths = ProjectPaths(tmp_path, "ep1")
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="fake", reference=None)},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="What?", start=0.0, end=1.0),
+                translation=Translation(text="Ce faci?", status="approved"),
+            ),
+            Utterance(
+                id="utt_000002",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="Again?", start=1.0, end=2.0),
+                translation=Translation(text="Încă o dată?", status="approved"),
+            ),
+        ],
+    )
+    manifest.save(paths.manifest)
+
+    from dubio import cli as cli_module
+
+    cli_module.load_config = lambda path=None: Config(tts=EngineCfg(engine="fake"))
+
+    result = CliRunner().invoke(
+        app,
+        ["synthesize", "ep1", "--projects-root", str(tmp_path), "--utterance", "utt_000001"],
+    )
+
+    assert result.exit_code == 0, result.output
+    updated = Manifest.load(paths.manifest)
+    assert updated.get_utterance("utt_000001").tts.file is not None
+    assert updated.get_utterance("utt_000002").tts.file is None
+    assert (paths.tts_dir / "utt_000001.wav").exists()
+    assert not (paths.tts_dir / "utt_000002.wav").exists()
