@@ -11,6 +11,7 @@ from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
+from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.synthesize import synthesize_project
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.voices import map_character
@@ -152,3 +153,24 @@ def synthesize_cmd(
         utterance_id=utterance,
     )
     typer.echo(f"Synthesized {paths.manifest}")
+
+
+@app.command(name="normalize")
+def normalize_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    utterance: str | None = typer.Option(None),
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    manifest = Manifest.load(paths.manifest)
+    config = load_config(None)
+
+    if utterance is not None:
+        target_utt = manifest.get_utterance(utterance)
+        normalize_utterance(manifest, target_utt, paths, config)
+        manifest.save(paths.manifest)
+        typer.echo(f"Normalized {paths.processed_dir / f'{utterance}.wav'}")
+        return
+
+    normalize_project(paths, config)
+    typer.echo(f"Normalized {paths.manifest}")

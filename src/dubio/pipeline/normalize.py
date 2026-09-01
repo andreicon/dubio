@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+import numpy as np
+
+from dubio.audio import process as dsp
+from dubio.audio.measure import load_wav, measure_loudness, write_wav
+from dubio.project.manifest import Manifest
+from dubio.project.voices import resolve_voice
+
+
+DEFAULT_CHAIN_CFG = {
+    "high_pass_hz": 80.0,
+    "eq_bands": [],
+    "compress": {"threshold_db": -18.0, "ratio": 3.0},
+}
+
+
+def _mono(samples: np.ndarray) -> np.ndarray:
+    if samples.ndim == 1:
+        return samples
+    return samples.mean(axis=1)
+
+
+def process_clip(samples, sr, chain_cfg, target_lufs, true_peak_db) -> np.ndarray:
+    x = _mono(np.asarray(samples, dtype=float))
+    x = dsp.remove_dc(x)
+    x = dsp.high_pass(x, sr, chain_cfg.get("high_pass_hz", 80.0))
+
+    eq_bands = chain_cfg.get("eq_bands") or []
+    if eq_bands:
+        x = dsp.apply_eq(x, sr, eq_bands)
+
+    compress_cfg = chain_cfg.get("compress") or {}
+    x = dsp.compress(
+        x,
+        threshold_db=compress_cfg.get("threshold_db", -18.0),
+        ratio=compress_cfg.get("ratio", 3.0),
+        sr=sr,
+    )
+    x = dsp.normalize_loudness(x, sr, target_lufs)
+    x = dsp.true_peak_limit(x, true_peak_db)
+    return x
+
+
+def normalize_utterance(m, utt, paths, config) -> None:
+    if not utt.tts.file:
+        return
+
+    samples, sr = load_wav(utt.tts.file)
+    processed = process_clip(
+        samples,
+        sr,
+        DEFAULT_CHAIN_CFG,
+        config.audio.target_lufs,
+        config.audio.true_peak_db,
+    )
+
+    voice_gain_db = resolve_voice(m, utt).gain_db
+    total_gain_db = voice_gain_db + utt.mix.gain_db
+    if total_gain_db:
+        processed = dsp.gain_db(processed, total_gain_db)
+
+    out = paths.processed_dir / f"{utt.id}.wav"
+    write_wav(out, processed, sr)
+
+    stats = measure_loudness(processed, sr)
+    utt.validation.measurements["loudness"] = {
+        "integrated_lufs": stats.integrated_lufs,
+        "true_peak_db": stats.true_peak_db,
+        "rms_db": stats.rms_db,
+    }
+
+
+def normalize_project(paths, config) -> None:
+    manifest = Manifest.load(paths.manifest)
+    for utt in manifest.utterances:
+        normalize_utterance(manifest, utt, paths, config)
+    manifest.save(paths.manifest)
