@@ -3,6 +3,7 @@ from pathlib import Path
 import typer
 
 from dubio.config import load_config
+from dubio.errors import DubError
 from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
@@ -14,6 +15,9 @@ from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.mix import mix_project
+from dubio.pipeline.regenerate import regenerate_utterance
+from dubio.pipeline.run import run
+from dubio.pipeline.render import render
 from dubio.pipeline.separate import separate
 from dubio.pipeline.synthesize import synthesize_project
 from dubio.pipeline.validate import validate_project
@@ -106,6 +110,13 @@ def _build_translator(config, paths: ProjectPaths):
     raise typer.BadParameter(f"Unsupported translation engine: {engine}")
 
 
+def _build_asr_engine(config):
+    asr_kwargs = {}
+    if config.asr.model is not None:
+        asr_kwargs["model"] = config.asr.model
+    return build_asr(config.asr.engine, **asr_kwargs)
+
+
 @app.command(name="translate")
 def translate_cmd(
     project: str = typer.Argument(...),
@@ -159,6 +170,28 @@ def synthesize_cmd(
     typer.echo(f"Synthesized {paths.manifest}")
 
 
+@app.command(name="regenerate")
+def regenerate_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    utterance: str | None = typer.Option(None),
+):
+    if utterance is None:
+        raise typer.BadParameter("Use --utterance with regenerate")
+
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    tts_kwargs = {}
+    if config.tts.model is not None:
+        tts_kwargs["model_version"] = config.tts.model
+    if config.tts.engine == "fish-s2-pro":
+        tts_kwargs["device"] = config.hardware.device
+
+    engines = {"tts": build_tts(config.tts.engine, out_dir=paths.tts_dir, **tts_kwargs), "asr": _build_asr_engine(config)}
+    regenerate_utterance(paths, utterance, engines, config)
+    typer.echo(f"Regenerated {utterance}")
+
+
 @app.command(name="normalize")
 def normalize_cmd(
     project: str = typer.Argument(...),
@@ -188,10 +221,7 @@ def validate_cmd(
 ):
     paths = ProjectPaths(Path(projects_root), project)
     config = load_config(None)
-    asr_kwargs = {}
-    if config.asr.model is not None:
-        asr_kwargs["model"] = config.asr.model
-    validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
+    validate_project(paths, _build_asr_engine(config), config, utterance_id=utterance)
     typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
 
 
@@ -228,3 +258,43 @@ def mix_cmd(
     config = load_config(None)
     mix_project(paths, config)
     typer.echo(f"Mixed {paths.mix_dir / 'final.wav'}")
+
+
+@app.command(name="render")
+def render_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    out = render(paths, config)
+    typer.echo(f"Rendered {out}")
+
+
+@app.command(name="run")
+def run_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    force_from: str | None = typer.Option(None, "--force-from"),
+):
+    from dubio.engines.separation.demucs import DemucsSeparator
+
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    diarizer = FakeDiarizer([])
+    if config.diarization.engine != "fake":
+        try:
+            from dubio.engines.diarization.pyannote import PyannoteDiarizer
+
+            diarizer = PyannoteDiarizer()
+        except Exception as exc:  # noqa: BLE001
+            raise DubError("ENGINE-003", f"Unsupported diarization engine: {config.diarization.engine}", {"error": str(exc)}) from exc
+    engines = {
+        "separator": DemucsSeparator(),
+        "asr": build_asr(config.asr.engine, model=config.asr.model),
+        "diarizer": diarizer,
+        "translator": _build_translator(config, paths),
+        "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir),
+    }
+    run(paths, config, engines, force_from=force_from)
+    typer.echo(f"Ran {paths.manifest}")
