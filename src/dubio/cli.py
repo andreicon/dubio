@@ -14,6 +14,7 @@ from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.mix import mix_project
+from dubio.pipeline.run import run
 from dubio.pipeline.render import render
 from dubio.pipeline.separate import separate
 from dubio.pipeline.synthesize import synthesize_project
@@ -240,3 +241,26 @@ def render_cmd(
     config = load_config(None)
     out = render(paths, config)
     typer.echo(f"Rendered {out}")
+
+
+@app.command(name="run")
+def run_cmd(
+    project: str = typer.Argument(...),
+    projects_root: str = "projects",
+    force_from: str | None = typer.Option(None, "--force-from"),
+):
+    from dubio.engines.asr.fake import FakeASR
+    from dubio.engines.diarization.fake import FakeDiarizer
+    from dubio.engines.separation.demucs import DemucsSeparator
+
+    paths = ProjectPaths(Path(projects_root), project)
+    config = load_config(None)
+    engines = {
+        "separator": DemucsSeparator(),
+        "asr": FakeASR(),
+        "diarizer": FakeDiarizer([]),
+        "translator": _build_translator(config, paths),
+        "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir),
+    }
+    run(paths, config, engines, force_from=force_from)
+    typer.echo(f"Ran {paths.manifest}")
