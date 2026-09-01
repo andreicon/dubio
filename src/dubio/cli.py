@@ -3,7 +3,6 @@ from pathlib import Path
 import typer
 
 from dubio.config import load_config
-from dubio.harness.factory import build_asr
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
@@ -15,7 +14,6 @@ from dubio.pipeline.diarize import diarize
 from dubio.pipeline.normalize import normalize_project, normalize_utterance
 from dubio.pipeline.mix import mix_project
 from dubio.pipeline.synthesize import synthesize_project
-from dubio.pipeline.validate import validate_project
 from dubio.pipeline.translate import translate_project
 from dubio.pipeline.voices import map_character
 from dubio.pipeline.transcribe import transcribe
@@ -177,21 +175,6 @@ def normalize_cmd(
 
     normalize_project(paths, config)
     typer.echo(f"Normalized {paths.manifest}")
-
-
-@app.command(name="validate")
-def validate_cmd(
-    project: str = typer.Argument(...),
-    projects_root: str = "projects",
-    utterance: str | None = typer.Option(None),
-):
-    paths = ProjectPaths(Path(projects_root), project)
-    config = load_config(None)
-    asr_kwargs = {}
-    if config.asr.model is not None:
-        asr_kwargs["model"] = config.asr.model
-    validate_project(paths, build_asr(config.asr.engine, **asr_kwargs), config, utterance_id=utterance)
-    typer.echo(f"Validated {paths.validation_dir / 'report.json'}")
 
 
 @app.command(name="mix")
