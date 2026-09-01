@@ -19,7 +19,7 @@ def synthesize_utterance(manifest, utterance, tts: TTSEngine, cache: Cache, path
     text = _utterance_text(utterance)
     instructions = {}
     params = {"pitch": voice.pitch, "speaking_rate": voice.speaking_rate, "gain_db": voice.gain_db}
-    language = "ro"
+    language = getattr(manifest.project, "target_language", "ro")
     key = tts_cache_key(tts.engine_id, tts.engine_version, voice.id, language, text, instructions, params)
 
     dest = Path(paths.tts_dir) / f"{utterance.id}.wav"
@@ -55,5 +55,6 @@ def synthesize_project(paths, tts: TTSEngine, config, force: bool = False, utter
 
     for utterance in utterances:
         synthesize_utterance(manifest, utterance, tts, cache, paths, force=force)
+        manifest.save(paths.manifest)
 
     manifest.save(paths.manifest)

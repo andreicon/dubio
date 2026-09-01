@@ -1,9 +1,12 @@
 from typer.testing import CliRunner
+from types import SimpleNamespace
 
 from dubio.cli import app
 from dubio.config import Config, EngineCfg
 from dubio.engines.tts.fake import FakeTTS
+from dubio.audio.measure import write_wav
 from dubio.pipeline.synthesize import synthesize_utterance
+from dubio.pipeline.synthesize import synthesize_project
 from dubio.project.manifest import Character, Manifest, Project, SourceSpan, Translation, Utterance, Voice
 from dubio.project.paths import ProjectPaths
 from dubio.utils.cache import Cache
@@ -73,3 +76,89 @@ def test_synthesize_cli_regenerates_one_utterance_and_persists_manifest(tmp_path
     assert updated.get_utterance("utt_000002").tts.file is None
     assert (paths.tts_dir / "utt_000001.wav").exists()
     assert not (paths.tts_dir / "utt_000002.wav").exists()
+
+
+def test_synthesize_project_persists_prior_success_before_later_failure(tmp_path, monkeypatch):
+    paths = ProjectPaths(tmp_path, "ep1")
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="spa"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="fake", reference=None)},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="One", start=0.0, end=1.0),
+                translation=Translation(text="Uno", status="approved"),
+            ),
+            Utterance(
+                id="utt_000002",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="Two", start=1.0, end=2.0),
+                translation=Translation(text="Dos", status="approved"),
+            ),
+        ],
+    )
+    manifest.save(paths.manifest)
+
+    calls = []
+
+    def fake_synthesize_utterance(manifest, utterance, tts, cache, paths, force=False):
+        calls.append(utterance.id)
+        if utterance.id == "utt_000001":
+            utterance.tts.file = str(paths.tts_dir / f"{utterance.id}.wav")
+            utterance.tts.engine = "fake"
+            utterance.tts.voice = "voice_bugs"
+            utterance.tts.engine_version = "0"
+            utterance.tts.duration = 0.5
+            paths.tts_dir.mkdir(parents=True, exist_ok=True)
+            write_wav(paths.tts_dir / f"{utterance.id}.wav", __import__("numpy").zeros(24000), 48000)
+            return
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("dubio.pipeline.synthesize.synthesize_utterance", fake_synthesize_utterance)
+
+    try:
+        synthesize_project(paths, FakeTTS(out_dir=paths.tts_dir), Config(), force=False)
+    except RuntimeError:
+        pass
+
+    updated = Manifest.load(paths.manifest)
+    assert calls == ["utt_000001", "utt_000002"]
+    assert updated.get_utterance("utt_000001").tts.file is not None
+    assert updated.get_utterance("utt_000002").tts.file is None
+
+
+def test_synthesize_utterance_uses_manifest_target_language(tmp_path):
+    paths = ProjectPaths(tmp_path, "ep1")
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="spa"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="fake", reference=None)},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="What?", start=0.0, end=1.0),
+                translation=Translation(text="Ce faci?", status="approved"),
+            ),
+        ],
+    )
+    utterance = manifest.utterances[0]
+
+    observed = {}
+
+    class RecordingTTS:
+        engine_id = "fake"
+        engine_version = "0"
+
+        def synthesize(self, text, voice, language, instructions):
+            observed["language"] = language
+            out = paths.tts_dir / "recording.wav"
+            paths.tts_dir.mkdir(parents=True, exist_ok=True)
+            write_wav(out, __import__("numpy").zeros(24000), 48000)
+            return SimpleNamespace(path=str(out), duration=0.5, engine_id=self.engine_id, engine_version=self.engine_version)
+
+    synthesize_utterance(manifest, utterance, RecordingTTS(), Cache(paths.tts_dir / "_cache"), paths)
+
+    assert observed["language"] == "spa"
