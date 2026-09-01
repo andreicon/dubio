@@ -25,6 +25,7 @@ def diarize(paths, diarizer, config) -> None:
     manifest = Manifest.load(paths.manifest)
     turns = diarizer.diarize(str(paths.audio_dir / "source.wav"))
     assign_speakers(manifest.utterances, turns)
+    paths.audio_dir.mkdir(parents=True, exist_ok=True)
     (paths.audio_dir / "diarization.json").write_text(
         json.dumps([turn.__dict__ for turn in turns]), encoding="utf-8"
     )
