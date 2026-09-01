@@ -8,6 +8,7 @@ from dubio.project.manifest import Manifest, Project
 from dubio.project.paths import ProjectPaths
 from dubio.pipeline.extract import extract
 from dubio.pipeline.diarize import diarize
+from dubio.pipeline.voices import map_character
 from dubio.pipeline.transcribe import transcribe
 
 
@@ -61,3 +62,18 @@ def diarize_cmd(project: str = typer.Argument(...), projects_root: str = "projec
     paths = ProjectPaths(Path(projects_root), project)
     diarize(paths, FakeDiarizer([]), load_config(None))
     typer.echo(f"Diarized {paths.audio_dir / 'diarization.json'}")
+
+
+@app.command(name="voices")
+def voices_cmd(
+    project: str = typer.Argument(...),
+    map: list[str] = typer.Option(None),
+    projects_root: str = "projects",
+):
+    paths = ProjectPaths(Path(projects_root), project)
+    manifest = Manifest.load(paths.manifest)
+    for mapping in map or []:
+        speaker_id, name = mapping.split("=", 1)
+        map_character(manifest, speaker_id, name)
+    manifest.save(paths.manifest)
+    typer.echo(f"Updated {paths.manifest}")
