@@ -12,6 +12,7 @@ from dubio.project.manifest import Character, Manifest, Project, SourceSpan, Tra
 from dubio.project.paths import ProjectPaths
 from dubio.utils.cache import Cache
 from dubio.utils.cache import tts_cache_key
+from dubio.engines.tts.delusion import DelusionTTS
 
 
 def test_synthesize_utterance_sets_tts_fields_and_writes_audio(tmp_path):
@@ -161,6 +162,92 @@ def test_synthesize_utterance_uses_manifest_target_language(tmp_path):
     synthesize_utterance(manifest, utterance, RecordingTTS(), Cache(paths.tts_dir / "_cache"), paths)
 
     assert observed["language"] == "spa"
+
+
+def test_delusion_synthesize_passes_voice_reference(tmp_path, monkeypatch):
+    paths = ProjectPaths(tmp_path, "ep1")
+    reference = tmp_path / "voices" / "bugs.wav"
+    reference.parent.mkdir(parents=True, exist_ok=True)
+    write_wav(reference, __import__("numpy").zeros(24000), 48000)
+
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="delusion", reference=str(reference))},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="What?", start=0.0, end=1.0),
+                translation=Translation(text="Ce faci?", status="approved"),
+            ),
+        ],
+    )
+    utterance = manifest.utterances[0]
+
+    observed = {}
+
+    class RecordingAudio:
+        def tts(self, text, reference=None):
+            observed["text"] = text
+            observed["reference"] = reference
+            out = paths.tts_dir / "delusion.wav"
+            paths.tts_dir.mkdir(parents=True, exist_ok=True)
+            write_wav(out, __import__("numpy").zeros(24000), 48000)
+            return SimpleNamespace(wav=out.read_bytes())
+
+    tts = DelusionTTS(out_dir=paths.tts_dir)
+    monkeypatch.setattr(tts, "_ensure_cli", lambda: None)
+    tts._audio = RecordingAudio()
+
+    synthesize_utterance(manifest, utterance, tts, Cache(paths.tts_dir / "_cache"), paths)
+
+    assert observed["text"] == "Ce faci?"
+    assert observed["reference"] == str(reference)
+
+
+def test_synthesize_utterance_prefers_utterance_reference_audio(tmp_path, monkeypatch):
+    paths = ProjectPaths(tmp_path, "ep1")
+    voice_reference = paths.base / "voices" / "bugs.wav"
+    utterance_reference = paths.base / "audio" / "reference" / "utt_000001.wav"
+    voice_reference.parent.mkdir(parents=True, exist_ok=True)
+    utterance_reference.parent.mkdir(parents=True, exist_ok=True)
+    write_wav(voice_reference, __import__("numpy").zeros(24000), 48000)
+    write_wav(utterance_reference, __import__("numpy").ones(24000) * 0.25, 48000)
+
+    manifest = Manifest(
+        project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"),
+        characters={"SPEAKER_00": Character(name="Bugs", voice="voice_bugs")},
+        voices={"voice_bugs": Voice(engine="delusion", reference=str(voice_reference))},
+        utterances=[
+            Utterance(
+                id="utt_000001",
+                speaker="SPEAKER_00",
+                source=SourceSpan(text="What?", start=0.0, end=1.0),
+                translation=Translation(text="Ce faci?", status="approved"),
+                reference_audio="audio/reference/utt_000001.wav",
+            ),
+        ],
+    )
+    utterance = manifest.utterances[0]
+
+    observed = {}
+
+    class RecordingAudio:
+        def tts(self, text, reference=None):
+            observed["reference"] = reference
+            out = paths.tts_dir / "delusion.wav"
+            paths.tts_dir.mkdir(parents=True, exist_ok=True)
+            write_wav(out, __import__("numpy").zeros(24000), 48000)
+            return SimpleNamespace(wav=out.read_bytes())
+
+    tts = DelusionTTS(out_dir=paths.tts_dir)
+    monkeypatch.setattr(tts, "_ensure_cli", lambda: None)
+    tts._audio = RecordingAudio()
+
+    synthesize_utterance(manifest, utterance, tts, Cache(paths.tts_dir / "_cache"), paths)
+
+    assert observed["reference"] == str(utterance_reference)
 
 
 def test_tts_cache_key_changes_when_voice_reference_changes():

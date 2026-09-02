@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 import shutil
 
@@ -15,9 +16,17 @@ def _utterance_text(utterance) -> str:
     return utterance.translation.text or utterance.source.text
 
 
+def _utterance_reference(paths, utterance, voice_reference: str | None) -> str | None:
+    if utterance.reference_audio:
+        return str(paths.base / utterance.reference_audio)
+    return voice_reference
+
+
 def synthesize_utterance(manifest, utterance, tts: TTSEngine, cache: Cache, paths, force: bool = False) -> None:
     voice = resolve_voice(manifest, utterance)
     text = _utterance_text(utterance)
+    reference = _utterance_reference(paths, utterance, voice.reference)
+    voice = replace(voice, reference=reference)
     instructions = {}
     params = {
         "pitch": voice.pitch,

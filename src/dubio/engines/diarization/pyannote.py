@@ -12,8 +12,10 @@ class PyannoteDiarizer(DiarizationEngine):
         self._pipeline = pipeline
 
     def diarize(self, audio_path):
-        annotation = self._pipeline(audio_path)
+        output = self._pipeline(audio_path)
+        annotation = getattr(output, "speaker_diarization", output)
         turns = []
-        for segment, _, speaker in annotation.itertracks(yield_label=True):
-            turns.append(SpeakerTurn(speaker, segment.start, segment.end))
+        if hasattr(annotation, "itertracks"):
+            for segment, _, speaker in annotation.itertracks(yield_label=True):
+                turns.append(SpeakerTurn(speaker, segment.start, segment.end))
         return turns

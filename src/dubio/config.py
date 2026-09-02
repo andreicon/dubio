@@ -12,6 +12,7 @@ class HardwareCfg(BaseModel):
 class EngineCfg(BaseModel):
     engine: str
     model: str | None = None
+    rate_limit_per_minute: int | None = None
 
 
 class AudioCfg(BaseModel):
@@ -36,7 +37,7 @@ class Config(BaseModel):
     hardware: HardwareCfg = Field(default_factory=HardwareCfg)
     asr: EngineCfg = Field(default_factory=lambda: EngineCfg(engine="whisper", model="large-v3"))
     diarization: EngineCfg = Field(default_factory=lambda: EngineCfg(engine="pyannote"))
-    translation: EngineCfg = Field(default_factory=lambda: EngineCfg(engine="llm"))
+    translation: EngineCfg = Field(default_factory=lambda: EngineCfg(engine="llm", rate_limit_per_minute=5))
     tts: EngineCfg = Field(default_factory=lambda: EngineCfg(engine="fish-s2-pro"))
     audio: AudioCfg = Field(default_factory=AudioCfg)
     timing: TimingCfg = Field(default_factory=TimingCfg)

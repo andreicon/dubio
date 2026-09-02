@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 from dubio.engines.translation.base import Candidate, Translator
 from dubio.engines.translation.duration import estimate_duration
@@ -22,13 +23,29 @@ Return STRICT JSON: {{"candidates":[{{"text":"..."}}, ...]}} with {n} options
 ranked from shortest to longest natural phrasing."""
 
 
-class LLMTranslator(Translator):
-    def __init__(self, client, model: str, n_candidates: int = 3, temperature: float = 0.7, rate_limit_per_minute: int | None = None):
-        self.client = client
-        self.model = model
+def _strip_markdown_fence(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped.split("\n", 1)[1] if "\n" in stripped else ""
+        if stripped.endswith("```"):
+            stripped = stripped.rsplit("```", 1)[0]
+    return stripped.strip()
+
+
+class GeminiTranslator(Translator):
+    def __init__(self, model: str | None = None, n_candidates: int = 3, temperature: float = 0.7, rate_limit_per_minute: int | None = None):
+        from google import genai
+
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise DubError("ENGINE-004", "Missing GEMINI_API_KEY", {}, "Set GEMINI_API_KEY in your .env or shell")
+
+        self.client = genai.Client(api_key=api_key)
+        self.model = model or os.environ.get("GEMINI_MODEL", "gemini-3.6-flash")
         self.n = n_candidates
         self.temp = temperature
         self._rate_limiter = RateLimiter(rate_limit_per_minute) if rate_limit_per_minute is not None else None
+        self.chat = self.client.chats.create(model=self.model)
 
     def translate(self, req):
         if self._rate_limiter is None:
@@ -45,13 +62,9 @@ class LLMTranslator(Translator):
             text=req.source_text,
             n=self.n,
         )
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=self.temp,
-        )
-        raw = resp.choices[0].message.content
         try:
+            resp = self.chat.send_message(prompt, config={"temperature": self.temp})
+            raw = _strip_markdown_fence(resp.text or "")
             data = json.loads(raw)
             items = data["candidates"]
             cands = []
@@ -63,8 +76,8 @@ class LLMTranslator(Translator):
         except Exception as e:
             raise DubError(
                 "TRANS-001",
-                f"Malformed LLM translation output: {e}",
-                {"raw": raw[:200]},
+                f"Malformed Gemini translation output: {e}",
+                {"raw": getattr(locals().get('resp', None), 'text', '')[:200]},
                 "Retry or lower temperature",
             )
         if not cands:

@@ -1,10 +1,11 @@
 from pathlib import Path
 
 import typer
+from dotenv import load_dotenv
 
 from dubio.config import load_config
 from dubio.errors import DubError
-from dubio.harness.factory import build_asr
+from dubio.harness.factory import build_asr, build_translator
 from dubio.engines.diarization.fake import FakeDiarizer
 from dubio.engines.translation.fake import FakeTranslator
 from dubio.engines.translation.llm import LLMTranslator
@@ -31,6 +32,7 @@ app = typer.Typer(help="Video Dubbing Pipeline")
 @app.callback()
 def main():
     """Video dubbing pipeline commands."""
+    load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 @app.command()
@@ -81,15 +83,29 @@ def diarize_cmd(project: str = typer.Argument(...), projects_root: str = "projec
 def voices_cmd(
     project: str = typer.Argument(...),
     map: list[str] = typer.Option(None),
+    voice: list[str] = typer.Option(None),
+    reference: str | None = typer.Option(None),
     projects_root: str = "projects",
 ):
     paths = ProjectPaths(Path(projects_root), project)
     manifest = Manifest.load(paths.manifest)
+    voice_map = {}
+    for enrollment in voice or []:
+        if "=" not in enrollment:
+            raise typer.BadParameter("Expected SPEAKER_00=voice_id")
+        speaker_id, voice_id = enrollment.split("=", 1)
+        voice_map[speaker_id] = voice_id
     for mapping in map or []:
         if "=" not in mapping:
             raise typer.BadParameter("Expected SPEAKER_00=Name")
         speaker_id, name = mapping.split("=", 1)
-        map_character(manifest, speaker_id, name)
+        voice_id = voice_map.get(speaker_id)
+        if voice_id and reference is not None:
+            map_character(manifest, speaker_id, name, voice=voice_id, reference=reference, engine="delusion")
+        elif voice_id:
+            map_character(manifest, speaker_id, name, voice=voice_id)
+        else:
+            map_character(manifest, speaker_id, name)
     manifest.save(paths.manifest)
     typer.echo(f"Updated {paths.manifest}")
 
@@ -106,7 +122,13 @@ def _build_translator(config, paths: ProjectPaths):
             base_url=os.environ.get("DUBIO_LLM_BASE_URL"),
             api_key=os.environ.get("DUBIO_LLM_API_KEY"),
         )
-        return LLMTranslator(client=client, model=config.translation.model or os.environ.get("DUBIO_LLM_MODEL", "gpt-4o-mini"))
+        return LLMTranslator(
+            client=client,
+            model=config.translation.model or os.environ.get("DUBIO_LLM_MODEL", "gpt-4o-mini"),
+            rate_limit_per_minute=config.translation.rate_limit_per_minute,
+        )
+    if engine == "gemini":
+        return build_translator("gemini", model=config.translation.model, rate_limit_per_minute=config.translation.rate_limit_per_minute)
     raise typer.BadParameter(f"Unsupported translation engine: {engine}")
 
 
@@ -114,6 +136,8 @@ def _build_asr_engine(config):
     asr_kwargs = {}
     if config.asr.model is not None:
         asr_kwargs["model"] = config.asr.model
+    asr_kwargs["device"] = config.hardware.device
+    asr_kwargs["compute_type"] = "int8" if config.hardware.device == "cpu" else "float16"
     return build_asr(config.asr.engine, **asr_kwargs)
 
 
@@ -291,7 +315,7 @@ def run_cmd(
             raise DubError("ENGINE-003", f"Unsupported diarization engine: {config.diarization.engine}", {"error": str(exc)}) from exc
     engines = {
         "separator": DemucsSeparator(),
-        "asr": build_asr(config.asr.engine, model=config.asr.model),
+        "asr": _build_asr_engine(config),
         "diarizer": diarizer,
         "translator": _build_translator(config, paths),
         "tts": build_tts(config.tts.engine, out_dir=paths.tts_dir),

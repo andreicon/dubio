@@ -61,9 +61,11 @@ This is especially useful for languages where a literal translation can produce 
 
 ## Voices
 
+(This section is under active development.)
+
 Characters have persistent voice profiles rather than being tied directly to diarization IDs.
 
-A speaker identified during transcription can be mapped to a character, and that character can have a configured voice, reference recording, pitch, speaking rate, gain, and other parameters.
+A speaker identified during transcription can be mapped to a character, and that character can have a configured voice, reference recording, pitch, speaking rate, gain, and other parameters. The `dubio voices` command now handles both mapping and Delusion voice enrollment when a reference WAV is supplied. 
 
 This keeps speaker identification separate from voice selection and makes voice configuration reusable across projects.
 
@@ -71,7 +73,7 @@ This keeps speaker identification separate from voice selection and makes voice 
 
 TTS is an isolated component of the processing system.
 
-The current candidate is Fish S2 Pro, but the rest of dubio should not need to know which model produced the audio.
+The current candidate is OmniVoice via Delusion, but the rest of dubio should not need to know which model produced the audio.
 
 The TTS interface is intended to support:
 
@@ -134,6 +136,8 @@ The long-term goal is deterministic, content-aware caching across the processing
 ## CLI
 
 The CLI is the first interface to the processing engine.
+
+If you use the local Delusion/audio.cpp TTS backend, set `AUDIOCPP_PATH` in your `.env` file to the `audiocpp_cli` binary. You can also run `./install_audiocpp_cli.sh` from the repository root first if you want the binary built locally; the adapter falls back to `audiocpp_cli` on `PATH`.
 
 Planned commands:
 

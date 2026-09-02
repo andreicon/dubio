@@ -1,4 +1,5 @@
-from dubio.project.manifest import Character, Manifest, SourceSpan, Utterance, Voice
+from dubio.pipeline.voices import map_character
+from dubio.project.manifest import Character, Manifest, Project, SourceSpan, Utterance, Voice
 from dubio.project.voices import load_voice_profile, resolve_voice
 
 
@@ -44,3 +45,20 @@ def test_resolve_voice_via_character():
 
     assert voice_profile.id == "voice_bugs"
     assert voice_profile.reference == "voices/bugs.wav"
+
+
+def test_map_character_can_enroll_voice_profile():
+    manifest = Manifest(project=Project(id="ep1", source="s.mp4", source_language="eng", target_language="ron"))
+
+    map_character(
+        manifest,
+        "SPEAKER_00",
+        "Bugs",
+        voice="bugs_ro",
+        reference="voices/bugs.wav",
+        engine="delusion",
+    )
+
+    assert manifest.characters["SPEAKER_00"].voice == "bugs_ro"
+    assert manifest.voices["bugs_ro"].engine == "delusion"
+    assert manifest.voices["bugs_ro"].reference == "voices/bugs.wav"

@@ -43,6 +43,34 @@ def test_normalize_writes_processed_and_metadata(tmp_path):
     assert abs(utterance.validation.measurements["loudness"]["true_peak_db"] - round(measure_loudness(samples, sr).true_peak_db, 2)) < 0.01
 
 
+def test_normalize_resamples_to_configured_sample_rate(tmp_path):
+    paths = ProjectPaths(tmp_path, "ep1")
+    input_sr = 24_000
+    output_sr = 48_000
+    t = np.arange(input_sr) / input_sr
+    write_wav(paths.tts_dir / "utt_000001.wav", 0.02 * np.sin(2 * np.pi * 300 * t), input_sr)
+
+    manifest = Manifest(
+        project=Project(id="ep1", source="s", source_language="eng", target_language="ron"),
+    )
+    manifest.characters["SPEAKER_00"] = Character(name="Bugs", voice="v")
+    manifest.voices["v"] = Voice(engine="fake", gain_db=0.0)
+    utterance = Utterance(
+        id="utt_000001",
+        speaker="SPEAKER_00",
+        source=SourceSpan(text="x", start=0, end=1),
+        tts=TTSInfo(file=str(paths.tts_dir / "utt_000001.wav"), duration=1.0),
+    )
+    manifest.utterances.append(utterance)
+
+    normalize_utterance(manifest, utterance, paths, Config())
+
+    out = paths.processed_dir / "utt_000001.wav"
+    samples, sr = load_wav(out)
+    assert sr == output_sr
+    assert len(samples) == output_sr
+
+
 def test_process_clip_applies_default_chain_order():
     sr = 48_000
     samples = np.zeros(sr)

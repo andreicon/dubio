@@ -10,10 +10,11 @@ diarization:
   engine: pyannote
 
 translation:
-  engine: llm
+  engine: gemini
+  rate_limit_per_minute: 5
 
 tts:
-  engine: fish-s2-pro
+  engine: delusion
 
 audio:
   sample_rate: 48000

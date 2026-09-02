@@ -73,6 +73,7 @@ class Utterance(BaseModel):
     id: str
     speaker: str
     source: SourceSpan
+    reference_audio: str | None = None
     translation: Translation = Field(default_factory=Translation)
     tts: TTSInfo = Field(default_factory=TTSInfo)
     mix: MixInfo = Field(default_factory=MixInfo)

@@ -9,8 +9,20 @@ class WhisperASR(ASREngine):
 
         self._model = WhisperModel(model, device=device, compute_type=compute_type)
 
+    @staticmethod
+    def _normalize_language(language: str | None) -> str | None:
+        if language == "eng":
+            return "en"
+        if language == "ron":
+            return "ro"
+        return language
+
     def transcribe(self, audio_path, language=None) -> ASRResult:
-        segments, info = self._model.transcribe(audio_path, language=language, word_timestamps=True)
+        segments, info = self._model.transcribe(
+            audio_path,
+            language=self._normalize_language(language),
+            word_timestamps=True,
+        )
         output = []
         for segment in segments:
             words = [Word(word.word, word.start, word.end) for word in (segment.words or [])]

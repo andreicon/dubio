@@ -1,9 +1,21 @@
 from __future__ import annotations
 
+import numpy as np
+
 from dubio.audio import process as dsp
 from dubio.audio.measure import load_wav, measure_loudness, write_wav
 from dubio.project.manifest import Manifest
 from dubio.project.voices import resolve_voice
+
+
+def _resample_to(samples: np.ndarray, source_sr: int, target_sr: int) -> np.ndarray:
+    if source_sr == target_sr:
+        return samples
+    if len(samples) == 0:
+        return samples
+    from scipy.signal import resample_poly
+
+    return resample_poly(samples, target_sr, source_sr)
 
 def process_clip(samples, sr, chain_cfg, target_lufs, true_peak_db) -> np.ndarray:
     x = samples if samples.ndim == 1 else samples.mean(axis=1)
@@ -38,6 +50,9 @@ def normalize_utterance(m, utt, paths, config) -> None:
         config.audio.target_lufs,
         config.audio.true_peak_db,
     )
+
+    processed = _resample_to(processed, sr, config.audio.sample_rate)
+    sr = config.audio.sample_rate
 
     voice_gain_db = resolve_voice(m, utt).gain_db
     total_gain_db = voice_gain_db + utt.mix.gain_db
